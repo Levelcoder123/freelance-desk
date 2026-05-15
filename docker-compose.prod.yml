@@ -1,0 +1,108 @@
+services:
+  api:
+    build:
+      context: ./freelance-api
+      target: production
+    container_name: freelance-api
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${API_PORT}:3000"
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+    networks:
+      - freelance-net
+
+  scheduler:
+    build:
+      context: ./freelance-api
+      target: production
+    container_name: freelance-scheduler
+    restart: unless-stopped
+    env_file: .env
+    command: ["node", "src/workers/schedulerWorker.js"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - freelance-net
+
+  dashboard:
+    build:
+      context: ./freelance-dashboard
+      args:
+        VITE_API_URL: /api/v1
+    container_name: freelance-dashboard
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - freelance-net
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: freelance-postgres
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - freelance-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: freelance-redis
+    restart: unless-stopped
+    env_file: .env
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - freelance-net
+
+networks:
+  freelance-net:
+    driver: bridge
+
+volumes:
+  pgdata:
+  redisdata:
+  uploads:

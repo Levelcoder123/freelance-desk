@@ -90,21 +90,28 @@ authRouter.post('/forgot-password', authLimiter, validate(authValidation.forgotP
 
   try {
     const email = req.body.email.toLowerCase().trim();
+    console.log(`[auth] Password reset requested for: "${email}"`);
+
     const user = await userService.findUserByEmail(email);
 
     if (!user) {
+      console.warn(`[auth] Reset aborted: No user found for "${email}"`);
       return res.json({ message: safeMessage });
     }
 
+    console.log(`[auth] User found (ID: ${user.id}). Generating token...`);
     await passwordResetService.revokePreviousResetTokens(user.id);
     const token = await passwordResetService.createPasswordResetToken(user.id);
 
     const resetUrl = `${FRONTEND_URL}/reset-password?token=${token}`;
+    console.log(`[auth] Sending email via Resend to ${email}...`);
+    
     await sendPasswordResetEmail(email, resetUrl);
-
+    
+    console.log(`[auth] Reset email sent successfully to ${email}`);
     return res.json({ message: safeMessage });
   } catch (err) {
-    console.error('[auth] forgot-password error:', err);
+    console.error('[auth] forgot-password error:', err.message);
     next(err);
   }
 });

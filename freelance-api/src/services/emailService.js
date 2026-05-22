@@ -1,76 +1,134 @@
-// src/services/emailService.js
 import { Resend } from 'resend';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const TEMPLATES_DIR = path.join(__dirname, '../templates/emails');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM = process.env.EMAIL_FROM || 'Freelance Desk <noreply@yourdomain.com>';
+const FROM   = process.env.EMAIL_FROM || 'Freelance <noreply@yourdomain.com>';
+const APP_URL = process.env.FRONTEND_URL || 'https://yourdomain.com';
+
+// ── Shared Design Tokens ────────────────────────────────────────────
+// All templates share the same indigo brand palette for consistency.
+const T = {
+    accent:     '#4F46E5',   // indigo
+    accentDark: '#3730A3',
+    text:       '#111827',
+    muted:      '#6B7280',
+    subtle:     '#9CA3AF',
+    border:     '#E5E7EB',
+    bg:         '#F9FAFB',
+    white:      '#FFFFFF',
+    green:      '#059669',
+};
+
+// ── Template Engine ────────────────────────────────────────────────
+
+/**
+ * Loads a template file and populates it with data.
+ */
+async function render(templateName, data = {}) {
+    const filePath = path.join(TEMPLATES_DIR, `${templateName}.html`);
+    let content = await fs.readFile(filePath, 'utf8');
+
+    // Merge shared tokens into data
+    const mergedData = { ...T, appUrl: APP_URL, ...data };
+
+    // Simple placeholder replacement: {{key}}
+    return content.replace(/{{(\w+)}}/g, (match, key) => {
+        return mergedData[key] !== undefined ? mergedData[key] : match;
+    });
+}
+
+/** Wraps any email body in a consistent shell: bg, max-width, font. */
+async function shell(bodyHtml, { previewText = '' } = {}) {
+    const previewTextHtml = previewText 
+        ? `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">${previewText}&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;</div>`
+        : '';
+    
+    return await render('layout', {
+        bodyHtml,
+        previewTextHtml
+    });
+}
+
+// ── Email Partials ──────────────────────────────────────────────────
+
+const header = () => render('partials/header');
+const divider = () => render('partials/divider');
+const btn = (label, url, { bg = T.accent, color = T.white } = {}) => 
+    render('partials/button', { label, url, bg, color });
+const ghostBtn = (label, url) => render('partials/ghostButton', { label, url });
+const statRow = (label, value, { last = false } = {}) => {
+    const borderStyle = last ? '' : `border-bottom:1px solid ${T.border};`;
+    return render('partials/statRow', { label, value, borderStyle });
+};
+
+// ── Email Functions ─────────────────────────────────────────────────
 
 /**
  * Send a password-reset email.
- * @param {string} to - Recipient email address
- * @param {string} resetUrl - Full reset URL including token
  */
 export async function sendPasswordResetEmail(to, resetUrl) {
+    const body = await render('passwordReset', {
+        header: await header(),
+        ctaButton: await btn('Reset Password', resetUrl),
+        divider: await divider(),
+        resetUrl
+    });
+
+    const html = await shell(body, { previewText: 'Reset your Freelance password — link expires in 1 hour.' });
+
     const { error } = await resend.emails.send({
         from: FROM,
         to,
-        subject: 'Reset your Freelance Desk password',
-        html: `
-      <p>Hi,</p>
-      <p>We received a request to reset your password.
-         Click the link below. It expires in <strong>1 hour</strong>.</p>
-      <p>
-        <a href="${resetUrl}" style="
-          display:inline-block;padding:12px 24px;background:#6366f1;
-          color:#fff;text-decoration:none;border-radius:6px;font-weight:600
-        ">Reset Password</a>
-      </p>
-      <p>If you did not request this, you can safely ignore this email.</p>
-      <p style="color:#888;font-size:12px">
-        Or copy this URL into your browser:<br>${resetUrl}
-      </p>
-    `,
+        subject: 'Reset your Freelance password',
+        html,
     });
 
     if (error) {
-        console.error('[emailService] Resend error:', error);
+        console.error('[emailService] sendPasswordResetEmail error:', error);
         throw new Error('Failed to send reset email');
     }
 }
 
+
 /**
- * Sends an invoice email to the client with a PDF link and Stripe payment link.
- * @param {{ to: string, invoiceNumber: string, clientName: string, amount: number,
- *           currency: string, dueDate: string, pdfUrl: string, paymentLink: string }} opts
+ * Sends an invoice email with PDF link and Stripe payment link.
  */
 export async function sendInvoiceEmail({ to, invoiceNumber, clientName, amount,
     currency, dueDate, pdfUrl, paymentLink }) {
+
     const formatted = new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: currency || 'USD'
+        style: 'currency', currency: currency || 'USD',
     }).format(amount);
+
+    const dueDateFmt = dueDate
+        ? new Date(dueDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+        : 'on receipt';
+
+    const body = await render('invoice', {
+        header: await header(),
+        clientName,
+        invoiceNumberRow: await statRow('Invoice number', `<span style="font-family:monospace;">${invoiceNumber}</span>`),
+        amountDueRow: await statRow('Amount due', `<span style="color:${T.accent};font-size:16px;">${formatted}</span>`),
+        dueDateRow: await statRow('Due date', dueDateFmt, { last: true }),
+        paymentButton: paymentLink ? `<td style="padding-right:12px;">${await btn('Pay Now', paymentLink)}</td>` : '',
+        pdfButton: pdfUrl ? `<td>${await ghostBtn('📄 Download PDF', pdfUrl)}</td>` : '',
+        divider: await divider()
+    });
+
+    const html = await shell(body, {
+        previewText: `Invoice ${invoiceNumber} for ${formatted} — due ${dueDateFmt}.`,
+    });
 
     const { error } = await resend.emails.send({
         from: FROM,
         to,
-        subject: `Invoice ${invoiceNumber} — ${formatted} due ${dueDate ?? 'on receipt'}`,
-        html: `
-      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;color:#1a1a1a">
-        <h2 style="margin-bottom:4px">Invoice ${invoiceNumber}</h2>
-        <p>Hi ${clientName},</p>
-        <p>Please find your invoice for <strong>${formatted}</strong>
-           ${dueDate ? `due on <strong>${dueDate}</strong>` : 'due on receipt'}.</p>
-        <div style="margin:24px 0;display:flex;gap:12px">
-          ${pdfUrl ? `<a href="${pdfUrl}" style="padding:10px 20px;background:#f4f4f4;
-            border-radius:6px;text-decoration:none;color:#333;font-size:14px">
-            📄 Download PDF</a>` : ''}
-          ${paymentLink ? `<a href="${paymentLink}" style="padding:10px 20px;
-            background:#4f46e5;border-radius:6px;text-decoration:none;
-            color:#fff;font-size:14px">💳 Pay Now</a>` : ''}
-        </div>
-        <p style="color:#666;font-size:13px">
-          If you have any questions, please reply to this email.
-        </p>
-      </div>`,
+        subject: `Invoice ${invoiceNumber} — ${formatted} due ${dueDateFmt}`,
+        html,
     });
 
     if (error) {
@@ -79,30 +137,40 @@ export async function sendInvoiceEmail({ to, invoiceNumber, clientName, amount,
     }
 }
 
+
 /**
- * Sends a payment confirmation to the client after successful payment.
- * @param {{ to: string, clientName: string, invoiceNumber: string,
- *           amount: number, currency: string }} opts
+ * Sends a payment confirmation after successful payment.
  */
 export async function sendPaymentConfirmation({ to, clientName, invoiceNumber,
     amount, currency }) {
+
     const formatted = new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: currency || 'USD'
+        style: 'currency', currency: currency || 'USD',
     }).format(amount);
+
+    const paidAt = new Date().toLocaleDateString('en-US', {
+        month: 'long', day: 'numeric', year: 'numeric',
+    });
+
+    const body = await render('paymentConfirmation', {
+        header: await header(),
+        formatted,
+        clientName,
+        invoiceRow: await statRow('Invoice', `<span style="font-family:monospace;">${invoiceNumber}</span>`),
+        amountPaidRow: await statRow('Amount paid', `<strong style="color:${T.green};">${formatted}</strong>`),
+        dateRow: await statRow('Date', paidAt, { last: true }),
+        divider: await divider()
+    });
+
+    const html = await shell(body, {
+        previewText: `Payment of ${formatted} received for invoice ${invoiceNumber}. Thank you!`,
+    });
 
     const { error } = await resend.emails.send({
         from: FROM,
         to,
         subject: `Payment received — Invoice ${invoiceNumber}`,
-        html: `
-      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;color:#1a1a1a">
-        <h2>✅ Payment Received</h2>
-        <p>Hi ${clientName},</p>
-        <p>We've received your payment of <strong>${formatted}</strong>
-           for invoice <strong>${invoiceNumber}</strong>. Thank you!</p>
-        <p style="color:#666;font-size:13px">Keep this email as your receipt.</p>
-      </div>`,
+        html,
     });
 
     if (error) {
@@ -111,37 +179,43 @@ export async function sendPaymentConfirmation({ to, clientName, invoiceNumber,
     }
 }
 
+
 /**
  * Sends a weekly summary email to the freelancer.
- * @param {{ to: string, name: string, stats: { earned: number, pending: number,
- *           invoicesSent: number, topClient: string } }} opts
  */
 export async function sendWeeklySummary({ to, name, stats }) {
     const fmt = (n) => new Intl.NumberFormat('en-US',
         { style: 'currency', currency: 'USD' }).format(n);
 
+    const weekRange = (() => {
+        const now  = new Date();
+        const mon  = new Date(now); mon.setDate(now.getDate() - now.getDay() + 1);
+        const sun  = new Date(mon); sun.setDate(mon.getDate() + 6);
+        const opts = { month: 'short', day: 'numeric' };
+        return `${mon.toLocaleDateString('en-US', opts)} – ${sun.toLocaleDateString('en-US', opts)}`;
+    })();
+
+    const body = await render('weeklySummary', {
+        header: await header(),
+        name,
+        weekRange,
+        earned: fmt(stats.earned),
+        pendingRow: await statRow('⏳ &nbsp;Pending payments', fmt(stats.pending)),
+        invoicesSentRow: await statRow('📄 &nbsp;Invoices sent', String(stats.invoicesSent)),
+        topClientRow: stats.topClient ? await statRow('⭐ &nbsp;Top client', stats.topClient, { last: true }) : '',
+        divider: await divider(),
+        dashboardButton: await btn('Go to Dashboard', APP_URL)
+    });
+
+    const html = await shell(body, {
+        previewText: `You earned ${fmt(stats.earned)} this week. ${stats.invoicesSent} invoice(s) sent.`,
+    });
+
     const { error } = await resend.emails.send({
         from: FROM,
         to,
-        subject: `Your weekly freelance summary`,
-        html: `
-      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;color:#1a1a1a">
-        <h2>Weekly Summary</h2>
-        <p>Hi ${name}, here's how your week looked:</p>
-        <table style="width:100%;border-collapse:collapse;font-size:15px">
-          <tr><td style="padding:8px 0;border-bottom:1px solid #eee">💰 Earned this week</td>
-              <td style="text-align:right;font-weight:bold">${fmt(stats.earned)}</td></tr>
-          <tr><td style="padding:8px 0;border-bottom:1px solid #eee">⏳ Pending</td>
-              <td style="text-align:right">${fmt(stats.pending)}</td></tr>
-          <tr><td style="padding:8px 0;border-bottom:1px solid #eee">📄 Invoices sent</td>
-              <td style="text-align:right">${stats.invoicesSent}</td></tr>
-          ${stats.topClient ? `<tr><td style="padding:8px 0">⭐ Top client</td>
-              <td style="text-align:right">${stats.topClient}</td></tr>` : ''}
-        </table>
-        <p style="margin-top:20px;color:#666;font-size:13px">
-          View full details in your <a href="${process.env.FRONTEND_URL}">dashboard</a>.
-        </p>
-      </div>`,
+        subject: `Your weekly summary — ${fmt(stats.earned)} earned`,
+        html,
     });
 
     if (error) {

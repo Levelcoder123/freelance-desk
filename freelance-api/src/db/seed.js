@@ -4,6 +4,7 @@
 
 import bcrypt from 'bcryptjs';
 import { query, pool } from '../config/database.js';
+import logger from '../utils/logger.js';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -32,10 +33,10 @@ function pick(arr) {
 // ─── Seed ────────────────────────────────────────────────────────────────────
 
 async function seed() {
-    console.log('🌱 Seeding database…\n');
+    logger.info('🌱 Seeding database…\n');
 
     // ── 1. User ────────────────────────────────────────────────────────────────
-    console.log('→ Creating demo user…');
+    logger.info('→ Creating demo user…');
     const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 12);
 
     const { rows: [user] } = await query(`
@@ -48,10 +49,10 @@ async function seed() {
   `, [DEMO_EMAIL, passwordHash, DEMO_NAME]);
 
     const userId = user.id;
-    console.log(`  ✓ User: ${DEMO_EMAIL} / ${DEMO_PASSWORD}\n`);
+    logger.info(`  ✓ User: ${DEMO_EMAIL} / ${DEMO_PASSWORD}\n`);
 
     // ── 2. Clients ─────────────────────────────────────────────────────────────
-    console.log('→ Creating clients…');
+    logger.info('→ Creating clients…');
     const clientData = [
         { name: 'Sarah Mitchell', company: 'Bright Digital', email: 'sarah@brightdigital.com', phone: '+1 415 234 5678', status: 'active', hourly_rate: 95 },
         { name: 'James Thornton', company: 'Thornton & Co', email: 'james@thorntonco.com', phone: '+1 312 876 5432', status: 'active', hourly_rate: 120 },
@@ -68,12 +69,12 @@ async function seed() {
       RETURNING id, name
     `, [userId, c.name, c.company, c.email, c.phone, c.status, c.hourly_rate, ['design', 'web']]);
         clients.push(client);
-        console.log(`  ✓ ${client.name}`);
+        logger.info(`  ✓ ${client.name}`);
     }
-    console.log();
+    logger.info('');
 
     // ── 3. Projects ────────────────────────────────────────────────────────────
-    console.log('→ Creating projects…');
+    logger.info('→ Creating projects…');
     const projectData = [
         { name: 'Brand Identity Redesign', client: 0, status: 'active', priority: 'high', progress: 65, budget: 4500, deadline: daysFromNow(14) },
         { name: 'E-commerce Platform', client: 1, status: 'active', priority: 'high', progress: 40, budget: 12000, deadline: daysFromNow(30) },
@@ -91,12 +92,12 @@ async function seed() {
       RETURNING id, name
     `, [userId, clients[p.client].id, p.name, p.status, p.priority, p.progress, p.budget, p.deadline]);
         projects.push(project);
-        console.log(`  ✓ ${project.name}`);
+        logger.info(`  ✓ ${project.name}`);
     }
-    console.log();
+    logger.info('');
 
     // ── 4. Invoices ────────────────────────────────────────────────────────────
-    console.log('→ Creating invoices…');
+    logger.info('→ Creating invoices…');
     const invoiceData = [
         {
             client: 0, project: 0, number: 'INV-2026-001', status: 'paid',
@@ -181,12 +182,12 @@ async function seed() {
             'Payment due within 30 days. Thank you for your business.',
             JSON.stringify(inv.items),
         ]);
-        console.log(`  ✓ ${inv.number} — ${inv.status} — $${inv.amount}`);
+        logger.info(`  ✓ ${inv.number} — ${inv.status} — $${inv.amount}`);
     }
-    console.log();
+    logger.info('');
 
     // ── 5. Expenses ────────────────────────────────────────────────────────────
-    console.log('→ Creating expenses…');
+    logger.info('→ Creating expenses…');
     const expenseData = [
         { description: 'Adobe Creative Cloud', amount: 54.99, category: 'Software', date: daysAgo(5) },
         { description: 'Figma Pro subscription', amount: 15.00, category: 'Software', date: daysAgo(5) },
@@ -210,26 +211,26 @@ async function seed() {
       INSERT INTO expenses (user_id, description, amount, currency, category, expense_date)
       VALUES ($1,$2,$3,'USD',$4,$5)
     `, [userId, e.description, e.amount, e.category, e.date]);
-        console.log(`  ✓ ${e.description} — $${e.amount}`);
+        logger.info(`  ✓ ${e.description} — $${e.amount}`);
     }
-    console.log();
+    logger.info('');
 
     // ── Summary ────────────────────────────────────────────────────────────────
-    console.log('✅ Seed complete!\n');
-    console.log('─────────────────────────────────');
-    console.log(`  Login:    ${DEMO_EMAIL}`);
-    console.log(`  Password: ${DEMO_PASSWORD}`);
-    console.log('─────────────────────────────────');
-    console.log(`  Clients:  ${clients.length}`);
-    console.log(`  Projects: ${projects.length}`);
-    console.log(`  Invoices: ${invoiceData.length}`);
-    console.log(`  Expenses: ${expenseData.length}`);
-    console.log('─────────────────────────────────\n');
+    logger.info('✅ Seed complete!\n');
+    logger.info('─────────────────────────────────');
+    logger.info(`  Login:    ${DEMO_EMAIL}`);
+    logger.info(`  Password: ${DEMO_PASSWORD}`);
+    logger.info('─────────────────────────────────');
+    logger.info(`  Clients:  ${clients.length}`);
+    logger.info(`  Projects: ${projects.length}`);
+    logger.info(`  Invoices: ${invoiceData.length}`);
+    logger.info(`  Expenses: ${expenseData.length}`);
+    logger.info('─────────────────────────────────\n');
 
     await pool.end();
 }
 
 seed().catch(err => {
-    console.error('❌ Seed failed:', err);
+    logger.error('❌ Seed failed', err);
     process.exit(1);
 });

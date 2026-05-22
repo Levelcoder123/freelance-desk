@@ -1,5 +1,6 @@
 import pg from 'pg';
 import dotenv from 'dotenv';
+import logger from '../utils/logger.js';
 
 dotenv.config();
 
@@ -15,7 +16,7 @@ export const pool = new Pool({
 });
 
 pool.on('error', (err) => {
-  console.error('Unexpected DB pool error:', err);
+  logger.error('Unexpected DB pool error', err);
   process.exit(-1);
 });
 

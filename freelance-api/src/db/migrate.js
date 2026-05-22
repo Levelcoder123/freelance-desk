@@ -3,11 +3,12 @@ import { readdirSync, readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { query, pool } from '../config/database.js';
+import logger from '../utils/logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 async function migrate() {
-  console.log('▶ Running migrations…');
+  logger.info('▶ Running migrations…');
 
   // 1. Create migrations tracking table if it doesn't exist
   await query(`
@@ -30,21 +31,21 @@ async function migrate() {
     );
 
     if (rows.length > 0) {
-      console.log(`  ✓ ${file} already applied — skipping`);
+      logger.info(`  ✓ ${file} already applied — skipping`);
       continue;
     }
 
-    console.log(`  → Applying ${file}`);
+    logger.info(`  → Applying ${file}`);
     await query(readFileSync(join(migrationsDir, file), 'utf8'));
     await query(`INSERT INTO _migrations (filename) VALUES ($1)`, [file]);
-    console.log(`  ✓ ${file} applied`);
+    logger.info(`  ✓ ${file} applied`);
   }
 
-  console.log('✅ Migrations complete');
+  logger.info('✅ Migrations complete');
   await pool.end();
 }
 
 migrate().catch(err => {
-  console.error('Migration failed:', err);
+  logger.error('Migration failed', err);
   process.exit(1);
 });

@@ -2,6 +2,7 @@ import { Resend } from 'resend';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import logger from '../utils/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATES_DIR = path.join(__dirname, '../templates/emails');
@@ -89,7 +90,7 @@ export async function sendPasswordResetEmail(to, resetUrl) {
     });
 
     if (error) {
-        console.error('[emailService] sendPasswordResetEmail error:', error);
+        logger.error('[emailService] sendPasswordResetEmail error', error);
         throw new Error('Failed to send reset email');
     }
 }
@@ -132,7 +133,7 @@ export async function sendInvoiceEmail({ to, invoiceNumber, clientName, amount,
     });
 
     if (error) {
-        console.error('[emailService] sendInvoiceEmail error:', error);
+        logger.error('[emailService] sendInvoiceEmail error', error);
         throw new Error(`Failed to send invoice email: ${error.message}`);
     }
 }
@@ -174,7 +175,7 @@ export async function sendPaymentConfirmation({ to, clientName, invoiceNumber,
     });
 
     if (error) {
-        console.error('[emailService] sendPaymentConfirmation error:', error);
+        logger.error('[emailService] sendPaymentConfirmation error', error);
         throw new Error(`Failed to send payment confirmation: ${error.message}`);
     }
 }
@@ -219,7 +220,7 @@ export async function sendWeeklySummary({ to, name, stats }) {
     });
 
     if (error) {
-        console.error('[emailService] sendWeeklySummary error:', error);
+        logger.error('[emailService] sendWeeklySummary error', error);
         throw new Error(`Failed to send weekly summary: ${error.message}`);
     }
 }

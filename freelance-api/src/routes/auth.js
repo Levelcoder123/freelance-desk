@@ -9,6 +9,7 @@ import * as authService from '../services/authService.js';
 import * as userService from '../services/userService.js';
 import * as passwordResetService from '../services/passwordResetService.js';
 import * as authValidation from '../validations/authValidation.js';
+import logger from '../utils/logger.js';
 
 export const authRouter = Router();
 
@@ -90,28 +91,28 @@ authRouter.post('/forgot-password', authLimiter, validate(authValidation.forgotP
 
   try {
     const email = req.body.email.toLowerCase().trim();
-    console.log(`[auth] Password reset requested for: "${email}"`);
+    logger.info(`[auth] Password reset requested for: "${email}"`);
 
     const user = await userService.findUserByEmail(email);
 
     if (!user) {
-      console.warn(`[auth] Reset aborted: No user found for "${email}"`);
+      logger.warn(`[auth] Reset aborted: No user found for "${email}"`);
       return res.json({ message: safeMessage });
     }
 
-    console.log(`[auth] User found (ID: ${user.id}). Generating token...`);
+    logger.info(`[auth] User found (ID: ${user.id}). Generating token...`);
     await passwordResetService.revokePreviousResetTokens(user.id);
     const token = await passwordResetService.createPasswordResetToken(user.id);
 
     const resetUrl = `${FRONTEND_URL}/reset-password?token=${token}`;
-    console.log(`[auth] Sending email via Resend to ${email}...`);
+    logger.info(`[auth] Sending email via Resend to ${email}...`);
     
     await sendPasswordResetEmail(email, resetUrl);
     
-    console.log(`[auth] Reset email sent successfully to ${email}`);
+    logger.info(`[auth] Reset email sent successfully to ${email}`);
     return res.json({ message: safeMessage });
   } catch (err) {
-    console.error('[auth] forgot-password error:', err.message);
+    logger.error('[auth] forgot-password error', err.message);
     next(err);
   }
 });
@@ -133,7 +134,7 @@ authRouter.post('/reset-password', authLimiter, validate(authValidation.resetPas
 
     return res.json({ message: 'Password updated successfully. You can now log in.' });
   } catch (err) {
-    console.error('[auth] reset-password error:', err);
+    logger.error('[auth] reset-password error', err);
     next(err);
   }
 });

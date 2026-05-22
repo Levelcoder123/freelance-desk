@@ -3,6 +3,7 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import morgan from 'morgan';
+import logger from './utils/logger.js';
 
 import { authRouter } from './routes/auth.js';
 import { clientsRouter } from './routes/clients.js';
@@ -34,7 +35,7 @@ app.post(
         try {
             event = constructWebhookEvent(req.body, sig);
         } catch (err) {
-            console.error('Stripe webhook signature failed:', err.message);
+            logger.error('Stripe webhook signature failed', err.message);
             return res.status(400).send(`Webhook Error: ${err.message}`);
         }
 
@@ -53,13 +54,13 @@ app.post(
                 );
 
                 if (result.rowCount > 0) {
-                    console.log(`Invoice ${meta.invoice_id} marked paid via Stripe webhook`);
+                    logger.info(`Invoice ${meta.invoice_id} marked paid via Stripe webhook`);
 
                     await confirmationQueue.add('send-confirmation', {
                         invoiceId: meta.invoice_id
                     });
                 } else {
-                    console.log(`Invoice ${meta.invoice_id} already paid (skipping queue)`);
+                    logger.info(`Invoice ${meta.invoice_id} already paid (skipping queue)`);
                 }
             }
         }
@@ -104,8 +105,8 @@ app.use((_, res) => res.status(404).json({ error: 'Route not found' }));
 app.use(errorHandler);
 
 if (process.env.NODE_ENV !== 'test' && process.env.JEST_WORKER_ID === undefined) {
-    app.listen(PORT, () => console.log(`API running on :${PORT}`));
-    registerScheduledJobs().catch(console.error);
+    app.listen(PORT, () => logger.info(`API running on :${PORT}`));
+    registerScheduledJobs().catch(err => logger.error('Failed to register scheduled jobs', err));
 }
 
 export default app;

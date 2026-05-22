@@ -1,5 +1,7 @@
+import logger from '../utils/logger.js';
+
 export function errorHandler(err, req, res, next) {
-  console.error(err);
+  logger.error(err.message || 'Unhandled error', err);
 
   if (err.name === 'ZodError') {
     return res.status(422).json({

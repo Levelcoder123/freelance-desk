@@ -5,6 +5,7 @@ import { query } from '../config/database.js';
 import { generateInvoicePdf, uploadToStorage } from '../services/pdfService.js';
 import { createPaymentLink } from '../services/stripeService.js';
 import { sendInvoiceEmail, sendPaymentConfirmation } from '../services/emailService.js';
+import logger from '../utils/logger.js';
 
 // ── Queue export — imported by the /invoices/:id/send route ──────────────────
 export const invoiceQueue = new Queue('invoices', { connection: redis });
@@ -12,7 +13,7 @@ export const invoiceQueue = new Queue('invoices', { connection: redis });
 // ── Worker ───────────────────────────────────────────────────────────────────
 const worker = new Worker('invoices', async (job) => {
     const { invoiceId } = job.data;
-    console.log(`[invoiceWorker] Starting job ${job.id} for invoice ${invoiceId}`);
+    logger.info(`[invoiceWorker] Starting job ${job.id} for invoice ${invoiceId}`);
 
     // 1. Fetch full invoice + client details
     const { rows } = await query(
@@ -35,28 +36,28 @@ const worker = new Worker('invoices', async (job) => {
     await job.updateProgress(10);
 
     // 2. Generate PDF
-    console.log(`[invoiceWorker] Job ${job.id}: Generating PDF...`);
+    logger.info(`[invoiceWorker] Job ${job.id}: Generating PDF...`);
     const pdfBuffer = await generateInvoicePdf(invoice);
     await job.updateProgress(40);
 
     // 3. Upload PDF to R2 / S3
     let pdfUrl = null;
     try {
-        console.log(`[invoiceWorker] Job ${job.id}: Uploading to storage...`);
+        logger.info(`[invoiceWorker] Job ${job.id}: Uploading to storage...`);
         const filename = `invoices/${invoice.user_id}/${invoice.invoice_number}.pdf`;
         pdfUrl = await uploadToStorage(pdfBuffer, filename);
     } catch (err) {
-        console.warn(`[invoiceWorker] Job ${job.id}: Storage upload failed, continuing without PDF link. Error: ${err.message}`);
+        logger.warn(`[invoiceWorker] Job ${job.id}: Storage upload failed, continuing without PDF link`, err.message);
     }
     await job.updateProgress(60);
 
     // 4. Create Stripe payment link
     let paymentLink = null;
     try {
-        console.log(`[invoiceWorker] Job ${job.id}: Creating Stripe link...`);
+        logger.info(`[invoiceWorker] Job ${job.id}: Creating Stripe link...`);
         paymentLink = await createPaymentLink(invoice);
     } catch (err) {
-        console.warn(`[invoiceWorker] Job ${job.id}: Stripe link creation failed, continuing without payment link. Error: ${err.message}`);
+        logger.warn(`[invoiceWorker] Job ${job.id}: Stripe link creation failed, continuing without payment link`, err.message);
     }
     await job.updateProgress(75);
 
@@ -79,7 +80,7 @@ const worker = new Worker('invoices', async (job) => {
         : 'on receipt';
 
     // 6. Send invoice email to client
-    console.log(`[invoiceWorker] Job ${job.id}: Sending email via Resend to ${invoice.client_email}...`);
+    logger.info(`[invoiceWorker] Job ${job.id}: Sending email via Resend to ${invoice.client_email}...`);
     await sendInvoiceEmail({
         to: invoice.client_email,
         invoiceNumber: invoice.invoice_number,
@@ -90,7 +91,7 @@ const worker = new Worker('invoices', async (job) => {
         pdfUrl,
         paymentLink,
     });
-    console.log(`[invoiceWorker] Job ${job.id}: Success!`);
+    logger.info(`[invoiceWorker] Job ${job.id}: Success!`);
     await job.updateProgress(100);
 
     return { pdfUrl, paymentLink };
@@ -135,10 +136,10 @@ const confirmationWorker = new Worker('confirmations', async (job) => {
 
 // ── Error logging ─────────────────────────────────────────────────────────────
 worker.on('failed', (job, err) => {
-    console.error(`[invoiceWorker] job ${job?.id} failed:`, err.message);
+    logger.error(`[invoiceWorker] job ${job?.id} failed`, err.message);
 });
 confirmationWorker.on('failed', (job, err) => {
-    console.error(`[confirmationWorker] job ${job?.id} failed:`, err.message);
+    logger.error(`[confirmationWorker] job ${job?.id} failed`, err.message);
 });
 
-console.log('Invoice worker running');
+logger.info('Invoice worker running');

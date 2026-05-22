@@ -3,6 +3,7 @@ import { Worker, Queue } from 'bullmq';
 import Redis from 'ioredis';
 import { query } from '../config/database.js';
 import { sendWeeklySummary } from '../services/emailService.js';
+import logger from '../utils/logger.js';
 
 // BullMQ needs separate connections for Queue and Worker
 const makeRedisConnection = () =>
@@ -48,7 +49,7 @@ export async function registerScheduledJobs() {
         }
     );
 
-    console.log('[scheduler] jobs registered');
+    logger.info('[scheduler] jobs registered');
 }
 
 const worker = new Worker(
@@ -63,7 +64,7 @@ const worker = new Worker(
                     WHERE status = 'pending'
                       AND due_date < CURRENT_DATE
                 `);
-                console.log(`[scheduler] marked ${rowCount} invoice(s) overdue`);
+                logger.info(`[scheduler] marked ${rowCount} invoice(s) overdue`);
                 break;
             }
 
@@ -112,11 +113,11 @@ const worker = new Worker(
                         });
                         sent++;
                     } catch (err) {
-                        console.error(`[scheduler] failed for ${user.email}:`, err.message);
+                        logger.error(`[scheduler] failed for ${user.email}`, err.message);
                     }
                 }
 
-                console.log(`[scheduler] weekly summaries sent to ${sent}/${users.length} user(s)`);
+                logger.info(`[scheduler] weekly summaries sent to ${sent}/${users.length} user(s)`);
                 break;
             }
 
@@ -130,23 +131,23 @@ const worker = new Worker(
                     DELETE FROM refresh_tokens
                     WHERE revoked = true OR expires_at < NOW()
                 `);
-                console.log(`[scheduler] cleaned ${resetCount} reset token(s), ${refreshCount} refresh token(s)`);
+                logger.info(`[scheduler] cleaned ${resetCount} reset token(s), ${refreshCount} refresh token(s)`);
                 break;
             }
 
             default:
-                console.warn(`[scheduler] unknown job: ${job.name}`);
+                logger.warn(`[scheduler] unknown job: ${job.name}`);
         }
     },
     { connection: makeRedisConnection() } // separate connection from the Queue
 );
 
 worker.on('failed', (job, err) => {
-    console.error(`[scheduler] job ${job?.id} (${job?.name}) failed:`, err.message);
+    logger.error(`[scheduler] job ${job?.id} (${job?.name}) failed`, err.message);
 });
 
 worker.on('error', (err) => {
-    console.error('[scheduler] worker error:', err.message);
+    logger.error('[scheduler] worker error', err.message);
 });
 
-console.log('[scheduler] worker running');
+logger.info('[scheduler] worker running');

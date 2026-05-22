@@ -3,3 +3,8 @@ dist
 npm-debug.log
 .env
 .git
+.github
+Dockerfile*
+README.md
+.gitignore
+Makefile

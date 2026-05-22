@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { resetPassword } from '../api/auth';
-import { styles } from './authStyles';
+import './Auth.css'
 
 export default function ResetPassword() {
   const [searchParams]          = useSearchParams();
@@ -47,61 +47,60 @@ export default function ResetPassword() {
 
   if (success) {
     return (
-      <div style={styles.container}>
-        <div style={styles.card}>
-          <h1 style={styles.title}>Password Updated</h1>
-          <p style={{ ...styles.subtitle, color: '#4ade80' }}>
+      <div className="auth-container-simple">
+        <div className="auth-card-simple">
+          <h1 className="auth-card-title">Password Updated</h1>
+          <p className="auth-card-subtitle" style={{ color: '#4ade80' }}>
             Your password has been reset successfully. Redirecting you to login…
           </p>
-          <Link to="/login" style={styles.link}>Go to Login now</Link>
+          <Link to="/login" className="auth-card-link">Go to Login now</Link>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h1 style={styles.title}>Reset Password</h1>
+    <div className="auth-container-simple">
+      <div className="auth-card-simple">
+        <h1 className="auth-card-title">Reset Password</h1>
 
         {!token && (
-          <p style={styles.error}>
+          <p className="auth-alert">
             Invalid reset link. Please request a new one.{' '}
-            <Link to="/forgot-password" style={styles.link}>Try again</Link>
+            <Link to="/forgot-password" className="auth-card-link">Try again</Link>
           </p>
         )}
 
-        {error && <p style={styles.error}>{error}</p>}
+        {error && <p className="auth-alert">{error}</p>}
 
         <form onSubmit={handleSubmit}>
-          <div style={styles.formGroup}>
-            <label style={styles.label}>New Password</label>
+          <div className="auth-field">
+            <label>New Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="At least 8 characters"
               required
-              style={styles.input}
             />
           </div>
 
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Confirm Password</label>
+          <div className="auth-field">
+            <label>Confirm Password</label>
             <input
               type="password"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               placeholder="Repeat your new password"
               required
-              style={styles.input}
             />
           </div>
 
           <button
+            className="auth-btn"
             type="submit"
             disabled={loading || !token}
-            style={{ ...styles.button, opacity: loading || !token ? 0.7 : 1 }}
+            style={{ opacity: loading || !token ? 0.7 : 1 }}
           >
             {loading ? 'Updating…' : 'Update Password'}
           </button>

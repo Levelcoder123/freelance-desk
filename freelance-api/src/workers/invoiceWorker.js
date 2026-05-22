@@ -12,6 +12,7 @@ export const invoiceQueue = new Queue('invoices', { connection: redis });
 // ── Worker ───────────────────────────────────────────────────────────────────
 const worker = new Worker('invoices', async (job) => {
     const { invoiceId } = job.data;
+    console.log(`[invoiceWorker] Starting job ${job.id} for invoice ${invoiceId}`);
 
     // 1. Fetch full invoice + client details
     const { rows } = await query(
@@ -34,19 +35,32 @@ const worker = new Worker('invoices', async (job) => {
     await job.updateProgress(10);
 
     // 2. Generate PDF
+    console.log(`[invoiceWorker] Job ${job.id}: Generating PDF...`);
     const pdfBuffer = await generateInvoicePdf(invoice);
     await job.updateProgress(40);
 
     // 3. Upload PDF to R2 / S3
-    const filename = `invoices/${invoice.user_id}/${invoice.invoice_number}.pdf`;
-    const pdfUrl = await uploadToStorage(pdfBuffer, filename);
+    let pdfUrl = null;
+    try {
+        console.log(`[invoiceWorker] Job ${job.id}: Uploading to storage...`);
+        const filename = `invoices/${invoice.user_id}/${invoice.invoice_number}.pdf`;
+        pdfUrl = await uploadToStorage(pdfBuffer, filename);
+    } catch (err) {
+        console.warn(`[invoiceWorker] Job ${job.id}: Storage upload failed, continuing without PDF link. Error: ${err.message}`);
+    }
     await job.updateProgress(60);
 
     // 4. Create Stripe payment link
-    const paymentLink = await createPaymentLink(invoice);
+    let paymentLink = null;
+    try {
+        console.log(`[invoiceWorker] Job ${job.id}: Creating Stripe link...`);
+        paymentLink = await createPaymentLink(invoice);
+    } catch (err) {
+        console.warn(`[invoiceWorker] Job ${job.id}: Stripe link creation failed, continuing without payment link. Error: ${err.message}`);
+    }
     await job.updateProgress(75);
 
-    // 5. Persist pdf_url + stripe_payment_link back to DB
+    // 5. Persist back to DB
     await query(
         `UPDATE invoices
      SET pdf_url = $1, stripe_payment_link = $2
@@ -55,17 +69,28 @@ const worker = new Worker('invoices', async (job) => {
     );
     await job.updateProgress(85);
 
+    // Format the date for the email
+    const displayDate = invoice.due_date 
+        ? new Date(invoice.due_date).toLocaleDateString('en-US', { 
+            month: 'long', 
+            day: 'numeric', 
+            year: 'numeric' 
+          })
+        : 'on receipt';
+
     // 6. Send invoice email to client
+    console.log(`[invoiceWorker] Job ${job.id}: Sending email via Resend to ${invoice.client_email}...`);
     await sendInvoiceEmail({
         to: invoice.client_email,
         invoiceNumber: invoice.invoice_number,
         clientName: invoice.client_name ?? 'there',
         amount: parseFloat(invoice.total_amount),
         currency: invoice.currency,
-        dueDate: invoice.due_date,
+        dueDate: displayDate,
         pdfUrl,
         paymentLink,
     });
+    console.log(`[invoiceWorker] Job ${job.id}: Success!`);
     await job.updateProgress(100);
 
     return { pdfUrl, paymentLink };

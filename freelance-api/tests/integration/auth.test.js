@@ -1,6 +1,6 @@
 // tests/integration/auth.test.js
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
-import { request, app, cleanUser } from '../setup.js';
+import { request, app, cleanUser, closeTestResources } from '../setup/setup.js';
 
 let tokens, userId;
 
@@ -8,7 +8,10 @@ describe('Auth routes', () => {
     const email = `auth_${Date.now()}@example.com`;
     const password = 'TestPass123!';
 
-    afterAll(() => cleanUser(userId));
+    afterAll(async () => {
+        await cleanUser(userId);
+        await closeTestResources();
+    });
 
     describe('POST /auth/register', () => {
         it('201 — creates user and returns tokens', async () => {

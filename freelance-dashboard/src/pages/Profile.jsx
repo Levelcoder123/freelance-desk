@@ -1,13 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useProfile, useUpdateProfile, useChangePassword } from '../hooks/useProfile'
-import Button from '../components/ui/Button'
 import { formatCurrency } from '../utils/currency'
-
-const TIMEZONES = [
-  'UTC', 'America/New_York', 'America/Chicago', 'America/Denver',
-  'America/Los_Angeles', 'Europe/London', 'Europe/Paris', 'Europe/Berlin',
-  'Asia/Dubai', 'Asia/Karachi', 'Asia/Kolkata', 'Asia/Tokyo', 'Australia/Sydney',
-]
+import { PersonalInfoForm, FinancialSettingsForm, ChangePasswordForm } from '../components/forms/ProfileForms'
 
 function Section({ title, children }) {
   return (
@@ -22,18 +16,6 @@ function Section({ title, children }) {
         {title}
       </h3>
       {children}
-    </div>
-  )
-}
-
-function Field({ label, hint, children }) {
-  return (
-    <div style={{ marginBottom: '1rem' }}>
-      <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>
-        {label}
-      </label>
-      {children}
-      {hint && <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>{hint}</p>}
     </div>
   )
 }
@@ -120,7 +102,6 @@ export default function Profile() {
     }
   }
 
-  // Live estimates based on current rates input
   const goal    = parseFloat(rates.monthly_goal) || 0
   const taxRate = parseFloat(rates.tax_rate)     || 0
   const seRate  = parseFloat(rates.se_tax_rate)  || 0
@@ -133,7 +114,6 @@ export default function Profile() {
 
   return (
     <div>
-      {/* Page header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <h2 style={{ margin: 0 }}>Profile</h2>
         <span style={{
@@ -145,143 +125,40 @@ export default function Profile() {
         </span>
       </div>
 
-      {/* Two-column layout */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '1.5rem', alignItems: 'start' }}>
-
-        {/* ── Left column: forms ── */}
         <div>
-          {/* Personal info */}
           <Section title="Personal information">
-            <form onSubmit={handleInfoSave}>
-              <Field label="Full name">
-                <input
-                  value={info.full_name}
-                  onChange={e => setInfo(p => ({ ...p, full_name: e.target.value }))}
-                  style={{ width: '100%' }}
-                />
-              </Field>
-              <Field label="Email">
-                <input
-                  type="email"
-                  value={info.email}
-                  onChange={e => setInfo(p => ({ ...p, email: e.target.value }))}
-                  style={{ width: '100%' }}
-                />
-              </Field>
-              <Field label="Timezone">
-                <select
-                  value={info.timezone}
-                  onChange={e => setInfo(p => ({ ...p, timezone: e.target.value }))}
-                  style={{ width: '100%' }}
-                >
-                  {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
-                </select>
-              </Field>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: '1.25rem' }}>
-                <Button type="submit" variant="primary" loading={updateProfile.isPending}>
-                  Save changes
-                </Button>
-                {infoMsg && (
-                  <span style={{ fontSize: 12, color: infoMsg.ok ? 'var(--success)' : 'var(--danger)' }}>
-                    {infoMsg.text}
-                  </span>
-                )}
-              </div>
-            </form>
+            <PersonalInfoForm
+              info={info}
+              setInfo={setInfo}
+              onSave={handleInfoSave}
+              loading={updateProfile.isPending}
+              message={infoMsg}
+            />
           </Section>
 
-          {/* Financial settings */}
           <Section title="Financial settings">
-            <form onSubmit={handleRatesSave}>
-              <Field label="Monthly revenue goal ($)" hint="Used for the dashboard progress indicator">
-                <input
-                  type="number" min="0"
-                  value={rates.monthly_goal}
-                  onChange={e => setRates(p => ({ ...p, monthly_goal: e.target.value }))}
-                  style={{ width: '100%' }}
-                />
-              </Field>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <Field label="Income tax rate (%)" hint="Applied to earnings">
-                  <input
-                    type="number" min="0" max="100" step="0.1"
-                    value={rates.tax_rate}
-                    onChange={e => setRates(p => ({ ...p, tax_rate: e.target.value }))}
-                    style={{ width: '100%' }}
-                  />
-                </Field>
-                <Field label="Self-employment tax (%)" hint="Typically 15.3% in the US">
-                  <input
-                    type="number" min="0" max="100" step="0.1"
-                    value={rates.se_tax_rate}
-                    onChange={e => setRates(p => ({ ...p, se_tax_rate: e.target.value }))}
-                    style={{ width: '100%' }}
-                  />
-                </Field>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: '1.25rem' }}>
-                <Button type="submit" variant="primary" loading={updateProfile.isPending}>
-                  Save changes
-                </Button>
-                {ratesMsg && (
-                  <span style={{ fontSize: 12, color: ratesMsg.ok ? 'var(--success)' : 'var(--danger)' }}>
-                    {ratesMsg.text}
-                  </span>
-                )}
-              </div>
-            </form>
+            <FinancialSettingsForm
+              rates={rates}
+              setRates={setRates}
+              onSave={handleRatesSave}
+              loading={updateProfile.isPending}
+              message={ratesMsg}
+            />
           </Section>
 
-          {/* Change password */}
           <Section title="Change password">
-            <form onSubmit={handlePasswordSave}>
-              <Field label="Current password">
-                <input
-                  type="password"
-                  value={pw.current_password}
-                  onChange={e => setPw(p => ({ ...p, current_password: e.target.value }))}
-                  style={{ width: '100%' }}
-                  autoComplete="current-password"
-                />
-              </Field>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <Field label="New password" hint="Minimum 8 characters">
-                  <input
-                    type="password"
-                    value={pw.new_password}
-                    onChange={e => setPw(p => ({ ...p, new_password: e.target.value }))}
-                    style={{ width: '100%' }}
-                    autoComplete="new-password"
-                  />
-                </Field>
-                <Field label="Confirm new password">
-                  <input
-                    type="password"
-                    value={pw.confirm}
-                    onChange={e => setPw(p => ({ ...p, confirm: e.target.value }))}
-                    style={{ width: '100%' }}
-                    autoComplete="new-password"
-                  />
-                </Field>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: '1.25rem' }}>
-                <Button type="submit" variant="primary" loading={changePassword.isPending}>
-                  Update password
-                </Button>
-                {pwMsg && (
-                  <span style={{ fontSize: 12, color: pwMsg.ok ? 'var(--success)' : 'var(--danger)' }}>
-                    {pwMsg.text}
-                  </span>
-                )}
-              </div>
-            </form>
+            <ChangePasswordForm
+              pw={pw}
+              setPw={setPw}
+              onSave={handlePasswordSave}
+              loading={changePassword.isPending}
+              message={pwMsg}
+            />
           </Section>
         </div>
 
-        {/* ── Right column: summary ── */}
         <div style={{ position: 'sticky', top: '1.5rem' }}>
-
-          {/* Account card */}
           <div style={{
             background: 'var(--bg-surface)',
             border: '1px solid var(--border)',
@@ -289,7 +166,6 @@ export default function Profile() {
             padding: '1.5rem',
             marginBottom: '1.25rem',
           }}>
-            {/* Avatar */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1.25rem' }}>
               <div style={{
                 width: 48, height: 48, borderRadius: '50%',
@@ -315,7 +191,6 @@ export default function Profile() {
             />
           </div>
 
-          {/* Tax estimate card */}
           <div style={{
             background: 'var(--bg-surface)',
             border: '1px solid var(--border)',
@@ -333,7 +208,6 @@ export default function Profile() {
             <StatRow label="Income tax"      value={`− ${formatCurrency(incomeTax)}`} muted />
             <StatRow label="SE tax"          value={`− ${formatCurrency(seTax)}`}     muted />
 
-            {/* Take-home highlight */}
             <div style={{
               marginTop: '1rem',
               padding: '12px 14px',

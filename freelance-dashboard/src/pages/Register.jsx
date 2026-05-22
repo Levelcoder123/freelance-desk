@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { register } from '../api/auth'
 import { useAuthStore } from '../store/authStore'
-import { authPageCss } from './authStyles'
+import './Auth.css'
 
 function getErrorMessage(error) {
   return (
@@ -37,7 +37,6 @@ export default function Register() {
 
   return (
     <main className="auth-root">
-      <style>{authPageCss}</style>
       <div className="auth-shell">
         <aside className="auth-story">
           <div className="auth-brand">

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getClients } from '../../api/clients'
 import Button from '../ui/Button'
-import { formatCurrency } from '../../utils/currency'
+import { InvoiceLineItems } from './InvoiceLineItems'
 
 const emptyItem = () => ({ description: '', quantity: 1, rate: '', amount: 0 })
 
@@ -102,9 +102,6 @@ export default function InvoiceForm({ initial = null, onSubmit, loading }) {
     })
   }
 
-  const colStyle   = { fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)', padding: '6px 8px' }
-  const inputStyle = { border: 'none', background: 'transparent', padding: '6px 8px', borderRadius: 0, fontSize: 13 }
-
   return (
     <form onSubmit={handleSubmit}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
@@ -125,70 +122,13 @@ export default function InvoiceForm({ initial = null, onSubmit, loading }) {
 
       <div style={{ marginBottom: 14 }}>
         <label>Line items</label>
-        <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead style={{ background: 'var(--bg-subtle)' }}>
-              <tr>
-                <th style={{ ...colStyle, width: '45%', textAlign: 'left' }}>Description</th>
-                <th style={{ ...colStyle, width: '15%', textAlign: 'right' }}>Qty</th>
-                <th style={{ ...colStyle, width: '20%', textAlign: 'right' }}>Rate ($)</th>
-                <th style={{ ...colStyle, width: '15%', textAlign: 'right' }}>Amount</th>
-                <th style={{ ...colStyle, width: '5%' }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {form.items.map((item, i) => (
-                <tr key={i} style={{ borderTop: '1px solid var(--border)' }}>
-                  <td>
-                    <input
-                      value={item.description}
-                      onChange={e => setItem(i, 'description', e.target.value)}
-                      placeholder="Design work"
-                      style={inputStyle}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number" min="0.01" step="0.01"
-                      value={item.quantity}
-                      onChange={e => setItem(i, 'quantity', e.target.value)}
-                      style={{ ...inputStyle, textAlign: 'right' }}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number" min="0" step="0.01"
-                      value={item.rate}
-                      onChange={e => setItem(i, 'rate', e.target.value)}
-                      placeholder="0.00"
-                      style={{ ...inputStyle, textAlign: 'right' }}
-                    />
-                  </td>
-                  <td style={{ padding: '6px 8px', textAlign: 'right', fontSize: 13, color: 'var(--text-secondary)' }}>
-                    {formatCurrency(item.amount)}
-                  </td>
-                  <td style={{ padding: '6px 8px', textAlign: 'center' }}>
-                    {form.items.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeItem(i)}
-                        style={{ border: 'none', background: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 16, padding: 0 }}
-                      >×</button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div style={{ padding: '8px 12px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <button type="button" onClick={addItem} style={{ border: 'none', background: 'none', color: 'var(--accent)', fontSize: 13, cursor: 'pointer', padding: 0, fontWeight: 500 }}>
-              + Add line
-            </button>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>
-              Total: {formatCurrency(subtotal)}
-            </span>
-          </div>
-        </div>
+        <InvoiceLineItems
+          items={form.items}
+          onSetItem={setItem}
+          onAddItem={addItem}
+          onRemoveItem={removeItem}
+          subtotal={subtotal}
+        />
         {errors.items && <span style={{ fontSize: 12, color: 'var(--red)', display: 'block', marginTop: 4 }}>{errors.items}</span>}
       </div>
 

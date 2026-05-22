@@ -1,6 +1,6 @@
 // tests/integration/dashboard.test.js
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
-import { request, app, createTestUser, createTestClient, cleanUser, query } from '../setup.js';
+import { request, app, createTestUser, createTestClient, cleanUser, query, closeTestResources } from '../setup/setup.js';
 
 let auth;
 
@@ -19,7 +19,10 @@ beforeAll(async () => {
         [auth.user.id]
     );
 });
-afterAll(async () => { await cleanUser(auth.user.id); });
+afterAll(async () => {
+    await cleanUser(auth.user.id);
+    await closeTestResources();
+});
 
 describe('Dashboard route', () => {
     it('200 — returns all expected top-level keys', async () => {

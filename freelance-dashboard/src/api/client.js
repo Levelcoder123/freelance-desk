@@ -20,7 +20,9 @@ api.interceptors.response.use(
     res => res,
     async err => {
         const original = err.config
-        if (err.response?.status === 401 && !original._retry) {
+        
+        // If it's a 401 and not a retry and not the login/refresh call itself
+        if (err.response?.status === 401 && !original._retry && !original.url.includes('/auth/login')) {
             if (refreshing) {
                 return new Promise((resolve, reject) => {
                     queue.push({ resolve, reject })
@@ -29,13 +31,20 @@ api.interceptors.response.use(
             original._retry = true
             refreshing = true
             try {
-                const { data } = await axios.post('/api/v1/auth/refresh', {
+                // IMPORTANT: Use the full URL or the 'api' instance to ensure baseURL is used
+                const { data } = await api.post('/auth/refresh', {
                     refresh_token: useAuthStore.getState().refreshToken,
                 })
+                
+                // Set the new tokens in store
                 useAuthStore.getState().setTokens(
-                    data.accessToken || data.access_token,
-                    data.refreshToken || data.refresh_token
+                    data.access_token,
+                    data.refresh_token
                 )
+                
+                // Update the original request header with new token
+                original.headers.Authorization = `Bearer ${data.access_token}`
+                
                 const retried = await api(original)
                 queue.forEach(p => p.resolve(retried))
                 queue = []
@@ -44,7 +53,7 @@ api.interceptors.response.use(
                 queue.forEach(p => p.reject(e))
                 queue = []
                 useAuthStore.getState().logout()
-                window.location.href = '/login'
+                // window.location.href = '/login'
             } finally {
                 refreshing = false
             }

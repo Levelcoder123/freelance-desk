@@ -7,22 +7,8 @@ import {
 import StatCard from '../components/ui/StatCard'
 import { formatCurrency } from '../utils/currency'
 import { useTheme } from '../hooks/useTheme'
-
-function ChartTooltip({ active, payload, label, currency }) {
-  if (!active || !payload?.length) return null
-  return (
-    <div style={{
-      background: 'var(--bg-surface)', border: '1px solid var(--border)',
-      borderRadius: 6, padding: '8px 12px',
-      boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: 12,
-    }}>
-      <p style={{ color: 'var(--text-muted)', marginBottom: 4 }}>{label}</p>
-      <p style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-        {currency ? formatCurrency(payload[0].value) : payload[0].value}
-      </p>
-    </div>
-  )
-}
+import { IconRevenue, IconOutstanding, IconClients, IconInvoices } from '../components/ui/Icons'
+import { ChartTooltip } from '../components/ui/ChartTooltip'
 
 export default function Dashboard() {
   const { data, isLoading } = useQuery({ queryKey: ['stats'], queryFn: getStats })
@@ -179,18 +165,4 @@ export default function Dashboard() {
       </div>
     </div>
   )
-}
-
-
-function IconRevenue() {
-  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-}
-function IconOutstanding() {
-  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-}
-function IconClients() {
-  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-}
-function IconInvoices() {
-  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
 }

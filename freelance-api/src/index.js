@@ -103,8 +103,9 @@ app.use((_, res) => res.status(404).json({ error: 'Route not found' }));
 // ── Global error handler (must be last)
 app.use(errorHandler);
 
-app.listen(PORT, () => console.log(`API running on :${PORT}`));
-
-registerScheduledJobs().catch(console.error);
+if (process.env.NODE_ENV !== 'test' && process.env.JEST_WORKER_ID === undefined) {
+    app.listen(PORT, () => console.log(`API running on :${PORT}`));
+    registerScheduledJobs().catch(console.error);
+}
 
 export default app;

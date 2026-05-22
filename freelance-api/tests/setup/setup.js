@@ -1,8 +1,28 @@
 // tests/setup/setup.js
-import { jest } from '@jest/globals';
+import { afterAll, jest } from '@jest/globals';
 
 // ── Mock BullMQ so workers don't need Redis in tests ─────────────────────────
-jest.mock('bullmq', () => ({
+const redisMock = {
+    duplicate: jest.fn(() => redisMock),
+    disconnect: jest.fn(),
+    quit: jest.fn().mockResolvedValue('OK'),
+    on: jest.fn(),
+};
+
+jest.unstable_mockModule('ioredis', () => ({
+    default: jest.fn(() => redisMock),
+    Redis: jest.fn(() => redisMock),
+}));
+
+jest.unstable_mockModule('../../src/config/redis.js', () => ({
+    default: redisMock,
+}));
+
+jest.unstable_mockModule('express-rate-limit', () => ({
+    default: jest.fn(() => (_req, _res, next) => next()),
+}));
+
+jest.unstable_mockModule('bullmq', () => ({
     Queue: jest.fn().mockImplementation(() => ({
         add: jest.fn().mockResolvedValue({ id: 'mock-job-id' }),
     })),
@@ -12,29 +32,58 @@ jest.mock('bullmq', () => ({
 }));
 
 // ── Mock external services ────────────────────────────────────────────────────
-jest.mock('../src/services/stripeService.js', () => ({
+jest.unstable_mockModule('../../src/services/stripeService.js', () => ({
     createPaymentLink: jest.fn().mockResolvedValue('https://buy.stripe.com/test'),
     constructWebhookEvent: jest.fn(),
 }));
 
-jest.mock('../src/services/emailService.js', () => ({
+jest.unstable_mockModule('../../src/services/emailService.js', () => ({
     sendInvoiceEmail: jest.fn().mockResolvedValue(undefined),
     sendPaymentConfirmation: jest.fn().mockResolvedValue(undefined),
+    sendPasswordResetEmail: jest.fn().mockResolvedValue(undefined),
     sendWeeklySummary: jest.fn().mockResolvedValue(undefined),
 }));
 
-jest.mock('../src/services/pdfService.js', () => ({
+jest.unstable_mockModule('../../src/services/pdfService.js', () => ({
     generateInvoicePdf: jest.fn().mockResolvedValue(Buffer.from('PDF')),
     uploadToStorage: jest.fn().mockResolvedValue('https://r2.example.com/test.pdf'),
 }));
 
 // ── Helpers available globally ────────────────────────────────────────────────
 import request from 'supertest';
-import app from '../src/index.js';
-import { query } from '../src/config/database.js';
 import bcrypt from 'bcryptjs';
 
-export { request, app, query, bcrypt };
+const { default: expressApp } = await import('../../src/index.js');
+const { query, pool } = await import('../../src/config/database.js');
+const app = expressApp.listen(0);
+const sockets = new Set();
+let serverClosed = false;
+
+app.keepAliveTimeout = 0;
+app.on('connection', socket => {
+    sockets.add(socket);
+    socket.on('close', () => sockets.delete(socket));
+});
+
+async function closeServer() {
+    if (serverClosed) return;
+    serverClosed = true;
+    for (const socket of sockets) {
+        socket.destroy();
+    }
+    app.closeAllConnections?.();
+    app.closeIdleConnections?.();
+    await new Promise(resolve => app.close(resolve));
+}
+
+afterAll(closeServer);
+
+export async function closeTestResources() {
+    await closeServer();
+    await pool.end();
+}
+
+export { request, query, bcrypt, app };
 
 /**
  * Creates a user and returns { user, accessToken, refreshToken }

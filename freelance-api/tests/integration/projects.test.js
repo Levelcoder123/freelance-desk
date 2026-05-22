@@ -1,6 +1,6 @@
 // tests/integration/projects.test.js
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
-import { request, app, createTestUser, createTestClient, cleanUser } from '../setup.js';
+import { request, app, createTestUser, createTestClient, cleanUser, closeTestResources } from '../setup/setup.js';
 
 let auth, client, projectId;
 
@@ -8,7 +8,10 @@ beforeAll(async () => {
     auth = await createTestUser();
     client = await createTestClient(auth.user.id);
 });
-afterAll(async () => { await cleanUser(auth.user.id); });
+afterAll(async () => {
+    await cleanUser(auth.user.id);
+    await closeTestResources();
+});
 
 describe('Projects routes', () => {
     describe('POST /projects', () => {

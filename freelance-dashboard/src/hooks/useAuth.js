@@ -1,7 +1,8 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
-import { login as loginApi, me, logout as logoutApi } from '../api/auth'
+import { login as loginApi, logout as logoutApi } from "../api/auth"
+import { getProfile as me } from "../api/profile"
 
 export function useMe() {
     const token = useAuthStore(s => s.token)

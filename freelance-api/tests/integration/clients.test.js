@@ -1,11 +1,14 @@
 // tests/integration/clients.test.js
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
-import { request, app, createTestUser, cleanUser } from '../setup.js';
+import { request, app, createTestUser, cleanUser, closeTestResources } from '../setup/setup.js';
 
 let auth, clientId;
 
 beforeAll(async () => { auth = await createTestUser(); });
-afterAll(async () => { await cleanUser(auth.user.id); });
+afterAll(async () => {
+    await cleanUser(auth.user.id);
+    await closeTestResources();
+});
 
 describe('Clients routes', () => {
     describe('POST /clients', () => {

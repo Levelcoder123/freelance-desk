@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { forgotPassword } from '../api/auth';
-import { styles } from './authStyles';
+import './Auth.css'
 
 export default function ForgotPassword() {
   const [email, setEmail]       = useState('');
@@ -25,47 +25,47 @@ export default function ForgotPassword() {
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h1 style={styles.title}>Forgot Password</h1>
+    <div className="auth-container-simple">
+      <div className="auth-card-simple">
+        <h1 className="auth-card-title">Forgot Password</h1>
 
         {submitted ? (
           <div>
-            <p style={{ ...styles.subtitle, color: '#4ade80', marginBottom: '1.5rem' }}>
+            <p className="auth-card-subtitle" style={{ color: '#4ade80', marginBottom: '1.5rem' }}>
               If that email is registered, a reset link is on its way. Check your inbox (and spam folder).
             </p>
-            <Link to="/login" style={styles.link}>Back to Login</Link>
+            <Link to="/login" className="auth-card-link">Back to Login</Link>
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
-            <p style={styles.subtitle}>
+            <p className="auth-card-subtitle">
               Enter your account email and we'll send you a reset link.
             </p>
 
-            {error && <p style={styles.error}>{error}</p>}
+            {error && <p className="auth-alert">{error}</p>}
 
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Email</label>
+            <div className="auth-field">
+              <label>Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 required
-                style={styles.input}
               />
             </div>
 
             <button
+              className="auth-btn"
               type="submit"
               disabled={loading}
-              style={{ ...styles.button, opacity: loading ? 0.7 : 1 }}
+              style={{ opacity: loading ? 0.7 : 1 }}
             >
               {loading ? 'Sending…' : 'Send Reset Link'}
             </button>
 
-            <p style={styles.footerText}>
-              <Link to="/login" style={styles.link}>Back to Login</Link>
+            <p className="auth-card-footer">
+              <Link to="/login" className="auth-card-link">Back to Login</Link>
             </p>
           </form>
         )}

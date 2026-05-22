@@ -49,7 +49,7 @@ export async function sendInvoiceEmail({ to, invoiceNumber, clientName, amount,
         currency: currency || 'USD'
     }).format(amount);
 
-    await resend.emails.send({
+    const { error } = await resend.emails.send({
         from: FROM,
         to,
         subject: `Invoice ${invoiceNumber} — ${formatted} due ${dueDate ?? 'on receipt'}`,
@@ -72,6 +72,11 @@ export async function sendInvoiceEmail({ to, invoiceNumber, clientName, amount,
         </p>
       </div>`,
     });
+
+    if (error) {
+        console.error('[emailService] sendInvoiceEmail error:', error);
+        throw new Error(`Failed to send invoice email: ${error.message}`);
+    }
 }
 
 /**
@@ -86,7 +91,7 @@ export async function sendPaymentConfirmation({ to, clientName, invoiceNumber,
         currency: currency || 'USD'
     }).format(amount);
 
-    await resend.emails.send({
+    const { error } = await resend.emails.send({
         from: FROM,
         to,
         subject: `Payment received — Invoice ${invoiceNumber}`,
@@ -99,6 +104,11 @@ export async function sendPaymentConfirmation({ to, clientName, invoiceNumber,
         <p style="color:#666;font-size:13px">Keep this email as your receipt.</p>
       </div>`,
     });
+
+    if (error) {
+        console.error('[emailService] sendPaymentConfirmation error:', error);
+        throw new Error(`Failed to send payment confirmation: ${error.message}`);
+    }
 }
 
 /**
@@ -110,7 +120,7 @@ export async function sendWeeklySummary({ to, name, stats }) {
     const fmt = (n) => new Intl.NumberFormat('en-US',
         { style: 'currency', currency: 'USD' }).format(n);
 
-    await resend.emails.send({
+    const { error } = await resend.emails.send({
         from: FROM,
         to,
         subject: `Your weekly freelance summary`,
@@ -133,4 +143,9 @@ export async function sendWeeklySummary({ to, name, stats }) {
         </p>
       </div>`,
     });
+
+    if (error) {
+        console.error('[emailService] sendWeeklySummary error:', error);
+        throw new Error(`Failed to send weekly summary: ${error.message}`);
+    }
 }

@@ -27,7 +27,7 @@ services:
     container_name: freelance-scheduler-dev
     restart: unless-stopped
     env_file: .env
-    command: ["node", "src/workers/schedulerWorker.js"]
+    command: ["npx", "tsx", "src/workers/schedulerWorker.ts"]
     volumes:
       - ./freelance-api:/app
       - api_node_modules:/app/node_modules

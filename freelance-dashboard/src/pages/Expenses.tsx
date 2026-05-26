@@ -73,13 +73,13 @@ export default function Expenses() {
       render: (val: string) => <Badge variant="default" label={val} />,
     },
     {
-      key: 'project_name',
+      key: 'projectName',
       label: 'Project',
       muted: true,
       render: (val: string | null) => val ?? '—',
     },
     {
-      key: 'expense_date',
+      key: 'expenseDate',
       label: 'Date',
       muted: true,
       render: (val: string | null) => val ? formatDate(val) : '—',

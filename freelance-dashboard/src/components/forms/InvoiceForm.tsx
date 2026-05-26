@@ -25,11 +25,11 @@ export default function InvoiceForm({ initial = null, onSubmit, loading }: Invoi
   const [form, setForm] = useState(() => {
     if (!initial) return emptyForm()
     return {
-      clientId: initial.client_id ?? '',
-      dueDate:  initial.due_date  ? initial.due_date.slice(0, 10) : '',
+      clientId: initial.clientId ?? '',
+      dueDate:  initial.dueDate  ? initial.dueDate.slice(0, 10) : '',
       notes:    initial.notes    ?? '',
       status:   initial.status    ?? 'draft',
-      items:    initial.line_items?.length ? initial.line_items.map(i => ({
+      items:    initial.lineItems?.length ? initial.lineItems.map(i => ({
         description: i.description ?? '',
         quantity:    i.quantity    ?? 1,
         rate:        i.rate        ?? 0,
@@ -52,7 +52,7 @@ export default function InvoiceForm({ initial = null, onSubmit, loading }: Invoi
 
   function setItem(index: number, field: keyof InvoiceLineItem, value: any) {
     setForm(f => {
-      const items = f.items.map((item, i) => {
+      const items = f.items.map((item: any, i: number) => {
         if (i !== index) return item
         const updated = { ...item, [field]: value }
         updated.amount = parseFloat(String(updated.quantity || 0)) * parseFloat(String(updated.rate || 0))
@@ -67,16 +67,16 @@ export default function InvoiceForm({ initial = null, onSubmit, loading }: Invoi
   }
 
   function removeItem(index: number) {
-    setForm(f => ({ ...f, items: f.items.filter((_, i) => i !== index) }))
+    setForm(f => ({ ...f, items: f.items.filter((_: any, i: number) => i !== index) }))
   }
 
-  const subtotal = form.items.reduce((sum, it) => sum + (it.amount || 0), 0)
+  const subtotal = form.items.reduce((sum: number, it: any) => sum + (it.amount || 0), 0)
 
   function validate() {
     const e: Record<string, string> = {}
     if (!form.clientId)   e.clientId = 'Please select a client'
     if (!form.dueDate)    e.dueDate  = 'Due date is required'
-    if (form.items.every(it => !it.description.trim())) e.items = 'Add at least one line item'
+    if (form.items.every((it: any) => !it.description.trim())) e.items = 'Add at least one line item'
     return e
   }
 
@@ -85,27 +85,27 @@ export default function InvoiceForm({ initial = null, onSubmit, loading }: Invoi
     const errs = validate()
     if (Object.keys(errs).length) { setErrors(errs); return }
     const lineItems = form.items
-      .filter(it => it.description.trim())
-      .map(it => ({
+      .filter((it: any) => it.description.trim())
+      .map((it: any) => ({
         description: it.description,
         quantity:    parseFloat(String(it.quantity)) || 1,
         rate:        parseFloat(String(it.rate))     || 0,
         amount:      (parseFloat(String(it.quantity)) || 1) * (parseFloat(String(it.rate)) || 0),
       }))
 
-    const amount = lineItems.reduce((sum, it) => sum + it.amount, 0)
+    const amount = lineItems.reduce((sum: number, it: any) => sum + it.amount, 0)
 
      onSubmit({
-      client_id:      form.clientId  || undefined,
-      issue_date:     new Date().toISOString().slice(0, 10),
-      due_date:       form.dueDate   || undefined,
-      notes:          form.notes     || undefined,
-      line_items:     lineItems,
+      clientId:       form.clientId  || null,
+      issueDate:      new Date().toISOString().slice(0, 10),
+      dueDate:        form.dueDate   || null,
+      notes:          form.notes     || null,
+      lineItems:      lineItems,
       amount,
-      invoice_number: `INV-${Date.now()}`,
+      invoiceNumber:  initial?.invoiceNumber ?? `INV-${Date.now()}`,
       status:         form.status,
       currency:       'USD',
-      tax_rate:       0,
+      taxRate:        0,
     })
   }
 

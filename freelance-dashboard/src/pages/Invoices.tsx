@@ -17,7 +17,7 @@ import { formatCurrency } from '../utils/currency'
 import { formatDate }     from '../utils/dates'
 import { Invoice } from '../types'
 
-const STATUS_FILTERS = ['all', 'draft', 'sent', 'paid', 'overdue']
+const STATUS_FILTERS = ['all', 'draft', 'pending', 'paid', 'overdue']
 
 export default function Invoices() {
   const [statusFilter, setStatusFilter] = useState('all')
@@ -61,14 +61,14 @@ export default function Invoices() {
 
   const columns = [
     {
-      key: 'invoice_number',
+      key: 'invoiceNumber',
       label: 'Invoice #',
       render: (val: string | null) => (
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{val ?? '—'}</span>
       ),
     },
     {
-      key: 'client_name',
+      key: 'clientName',
       label: 'Client',
       render: (val: string | null) => val ?? '—',
     },
@@ -81,7 +81,7 @@ export default function Invoices() {
       ),
     },
     {
-      key: 'due_date',
+      key: 'dueDate',
       label: 'Due',
       muted: true,
       render: (val: string | null) => val ? formatDate(val) : '—',

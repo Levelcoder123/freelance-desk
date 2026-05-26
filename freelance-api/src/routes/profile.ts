@@ -23,7 +23,7 @@ profileRouter.get('/', async (req: AuthenticatedRequest, res: Response, next: Ne
 profileRouter.patch('/', validate(profileValidation.updateProfileSchema), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
         if (!req.userId) return res.status(401).json({ error: 'Unauthorized' });
-        const allowed = ['full_name', 'email', 'monthly_goal', 'tax_rate', 'se_tax_rate', 'timezone'];
+        const allowed = ['fullName', 'email', 'monthlyGoal', 'taxRate', 'seTaxRate', 'timezone'];
         const updates = Object.fromEntries(
             Object.entries(req.body).filter(([k]) => allowed.includes(k))
         );
@@ -31,7 +31,7 @@ profileRouter.patch('/', validate(profileValidation.updateProfileSchema), async 
             return res.status(400).json({ error: 'Nothing to update' });
 
         // Check email uniqueness if changing email
-        if (updates.email) {
+        if (updates.email && typeof updates.email === 'string') {
             const existing = await userService.findUserByEmail(updates.email);
             if (existing && existing.id !== req.userId) {
                 return res.status(409).json({ error: 'Email already in use' });
@@ -53,9 +53,9 @@ profileRouter.post('/change-password', validate(profileValidation.changePassword
         if (!profile) return res.status(404).json({ error: 'User not found' });
 
         const user = await userService.findUserByEmail(profile.email);
-        if (!user || !user.password_hash) return res.status(404).json({ error: 'User not found' });
+        if (!user || !user.passwordHash) return res.status(404).json({ error: 'User not found' });
 
-        const valid = await authService.comparePassword(current_password, user.password_hash);
+        const valid = await authService.comparePassword(current_password, user.passwordHash);
         if (!valid) return res.status(400).json({ error: 'Current password is incorrect' });
 
         const hash = await authService.hashPassword(new_password);

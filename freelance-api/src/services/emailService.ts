@@ -7,7 +7,7 @@ import logger from '../utils/logger.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATES_DIR = path.join(__dirname, '../templates/emails');
 
-const resend = new Resend(process.env.RESEND_API_KEY as string);
+const resend = new Resend((process.env.RESEND_API_KEY as string) || 're_123');
 const FROM   = process.env.EMAIL_FROM || 'Freelance <noreply@yourdomain.com>';
 const APP_URL = process.env.FRONTEND_URL || 'https://yourdomain.com';
 
@@ -34,7 +34,7 @@ async function render(templateName: string, data: Record<string, any> = {}): Pro
     let content = await fs.readFile(filePath, 'utf8');
 
     // Merge shared tokens into data
-    const mergedData = { ...T, appUrl: APP_URL, ...data };
+    const mergedData: Record<string, any> = { ...T, appUrl: APP_URL, ...data };
 
     // Simple placeholder replacement: {{key}}
     return content.replace(/{{(\w+)}}/g, (match, key) => {

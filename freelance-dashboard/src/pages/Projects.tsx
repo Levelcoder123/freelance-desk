@@ -65,7 +65,7 @@ export default function Projects() {
       key: 'client',
       label: 'Client',
       muted: true,
-      render: (_: any, row: Project) => row.client_name ?? '—',
+      render: (_: any, row: Project) => row.clientName ?? '—',
     },
     {
       key: 'status',
@@ -77,7 +77,7 @@ export default function Projects() {
       label: 'Budget',
       align: 'right' as const,
       muted: true,
-      render: (val: number | null) => val ? formatCurrency(val) : '—',
+      render: (val: string | null) => val ? formatCurrency(parseFloat(val)) : '—',
     },
     {
       key: 'deadline',

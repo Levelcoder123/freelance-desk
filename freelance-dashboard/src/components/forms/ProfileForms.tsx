@@ -28,8 +28,8 @@ export function PersonalInfoForm({ info, setInfo, onSave, loading, message }: Pe
           Full name
         </label>
         <input
-          value={info.full_name}
-          onChange={e => setInfo((p: any) => ({ ...p, full_name: e.target.value }))}
+          value={info.fullName ?? ''}
+          onChange={e => setInfo((p: any) => ({ ...p, fullName: e.target.value }))}
           style={{ width: '100%' }}
         />
       </div>
@@ -39,7 +39,7 @@ export function PersonalInfoForm({ info, setInfo, onSave, loading, message }: Pe
         </label>
         <input
           type="email"
-          value={info.email}
+          value={info.email ?? ''}
           onChange={e => setInfo((p: any) => ({ ...p, email: e.target.value }))}
           style={{ width: '100%' }}
         />
@@ -49,7 +49,7 @@ export function PersonalInfoForm({ info, setInfo, onSave, loading, message }: Pe
           Timezone
         </label>
         <select
-          value={info.timezone}
+          value={info.timezone ?? 'UTC'}
           onChange={e => setInfo((p: any) => ({ ...p, timezone: e.target.value }))}
           style={{ width: '100%' }}
         >
@@ -87,8 +87,8 @@ export function FinancialSettingsForm({ rates, setRates, onSave, loading, messag
         </label>
         <input
           type="number" min="0"
-          value={rates.monthly_goal}
-          onChange={e => setRates((p: any) => ({ ...p, monthly_goal: e.target.value }))}
+          value={rates.monthlyGoal ?? ''}
+          onChange={e => setRates((p: any) => ({ ...p, monthlyGoal: e.target.value }))}
           style={{ width: '100%' }}
         />
         <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>
@@ -102,8 +102,8 @@ export function FinancialSettingsForm({ rates, setRates, onSave, loading, messag
           </label>
           <input
             type="number" min="0" max="100" step="0.1"
-            value={rates.tax_rate}
-            onChange={e => setRates((p: any) => ({ ...p, tax_rate: e.target.value }))}
+            value={rates.taxRate ?? ''}
+            onChange={e => setRates((p: any) => ({ ...p, taxRate: e.target.value }))}
             style={{ width: '100%' }}
           />
         </div>
@@ -113,8 +113,8 @@ export function FinancialSettingsForm({ rates, setRates, onSave, loading, messag
           </label>
           <input
             type="number" min="0" max="100" step="0.1"
-            value={rates.se_tax_rate}
-            onChange={e => setRates((p: any) => ({ ...p, se_tax_rate: e.target.value }))}
+            value={rates.seTaxRate ?? ''}
+            onChange={e => setRates((p: any) => ({ ...p, seTaxRate: e.target.value }))}
             style={{ width: '100%' }}
           />
         </div>

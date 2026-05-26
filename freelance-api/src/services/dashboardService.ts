@@ -1,26 +1,29 @@
-import { query } from '../config/database.js';
+import { db } from '../config/database.js';
+import { invoices, clients, projects, users, expenses } from '../db/schema.js';
+import { eq, and, sql, desc, count, between, inArray, lt } from 'drizzle-orm';
 
 export interface DashboardData {
   summary: {
-    total_earned: number;
-    total_expenses: number;
-    total_pending: number;
-    total_overdue: number;
-    overdue_invoices: number;
-    open_invoices: number;
-    total_outstanding: number;
-    expenses_by_category: { category: string; total: number }[];
+    totalEarned: number;
+    totalExpenses: number;
+    totalPending: number;
+    totalOverdue: number;
+    overdueInvoices: number;
+    openInvoices: number;
+    totalOutstanding: number;
+    expensesByCategory: { category: string; total: number }[];
+    activeClients: number;
   };
-  monthly_revenue: { label: string; revenue: number; invoice_count: number }[];
-  deadlines: { id: string; name: string; deadline: Date; priority: string; progress: number; client_name: string }[];
-  recent_invoices: { id: string; invoice_number: string; amount: number; status: string; due_date: Date; client_name: string }[];
+  monthlyRevenue: { label: string; revenue: number; invoiceCount: number }[];
+  deadlines: { id: string; name: string; deadline: Date | string; priority: string; progress: number; clientName: string }[];
+  recentInvoices: { id: string; invoiceNumber: string; amount: number; status: string; dueDate: Date | string; clientName: string }[];
   tax: {
     gross: number;
     expenses: number;
     taxable: number;
-    tax_owed: number;
-    tax_rate: number;
-    se_tax_rate: number;
+    taxOwed: number;
+    taxRate: number;
+    seTaxRate: number;
   };
   goal: {
     target: number;
@@ -40,7 +43,8 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
     recentInvoices,
     invoiceStats,
     expensesByCategory,
-    userSettings
+    userSettings,
+    clientCount
   ] = await Promise.all([
     fetchSummaryBase(userId),
     fetchMonthlyRevenue(userId),
@@ -48,42 +52,46 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
     fetchRecentInvoices(userId),
     fetchInvoiceStats(userId),
     fetchExpensesByCategory(userId),
-    fetchUserSettings(userId)
+    fetchUserSettings(userId),
+    fetchClientCount(userId)
   ]);
 
-  const gross = parseFloat(summaryBase?.total_earned || 0);
-  const expenses = parseFloat(summaryBase?.total_expenses || 0);
-  const taxable = Math.max(0, gross - expenses);
-  const taxRate = parseFloat(userSettings.tax_rate || 0);
-  const seTaxRate = parseFloat(userSettings.se_tax_rate || 0);
+  const gross = parseFloat(summaryBase?.total_earned || '0');
+  const expenses_val = parseFloat(summaryBase?.total_expenses || '0');
+  const taxable = Math.max(0, gross - expenses_val);
+  const taxRate = parseFloat(userSettings.taxRate || '0');
+  const seTaxRate = parseFloat(userSettings.seTaxRate || '0');
   const taxOwed = taxable * ((taxRate + seTaxRate) / 100);
 
   return {
     summary: {
-      total_earned: parseFloat(summaryBase?.total_earned || 0),
-      total_expenses: parseFloat(summaryBase?.total_expenses || 0),
-      total_pending: parseFloat(summaryBase?.total_pending || 0),
-      total_overdue: parseFloat(summaryBase?.total_overdue || 0),
-      overdue_invoices: invoiceStats.overdueCount,
-      open_invoices: invoiceStats.openCount,
-      total_outstanding: parseFloat(summaryBase?.total_pending || 0) + parseFloat(summaryBase?.total_overdue || 0),
-      expenses_by_category: expensesByCategory,
+      totalEarned: gross,
+      totalExpenses: expenses_val,
+      totalPending: parseFloat(summaryBase?.total_pending || '0'),
+      totalOverdue: parseFloat(summaryBase?.total_overdue || '0'),
+      overdueInvoices: invoiceStats.overdueCount,
+      openInvoices: invoiceStats.openCount,
+      totalOutstanding: parseFloat(summaryBase?.total_pending || '0') + parseFloat(summaryBase?.total_overdue || '0'),
+      expensesByCategory: expensesByCategory as any,
+      activeClients: clientCount
     },
-    monthly_revenue: monthlyRevenue,
-    deadlines,
-    recent_invoices: recentInvoices,
+    monthlyRevenue,
+    deadlines: deadlines as any,
+    recentInvoices: recentInvoices as any,
     tax: {
       gross,
-      expenses,
+      expenses: expenses_val,
       taxable,
-      tax_owed: Math.round(taxOwed * 100) / 100,
-      tax_rate: userSettings.tax_rate,
-      se_tax_rate: userSettings.se_tax_rate,
+      taxOwed: Math.round(taxOwed * 100) / 100,
+      taxRate,
+      seTaxRate,
     },
     goal: {
-      target: parseFloat(userSettings.monthly_goal || 0),
+      target: parseFloat(userSettings.monthlyGoal || '0'),
       earned: gross,
-      percent: userSettings.monthly_goal > 0 ? Math.min(100, Math.round((gross / userSettings.monthly_goal) * 100)) : 0,
+      percent: userSettings.monthlyGoal && parseFloat(userSettings.monthlyGoal) > 0 
+        ? Math.min(100, Math.round((gross / parseFloat(userSettings.monthlyGoal)) * 100)) 
+        : 0,
     },
   };
 }
@@ -91,66 +99,112 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
 // ── Private Helper Functions ────────────────────────────────────────
 
 async function fetchSummaryBase(userId: string) {
-  const { rows } = await query('SELECT * FROM v_dashboard_summary WHERE user_id=$1', [userId]);
-  return rows[0] || {};
+  const result = await db.execute(sql`SELECT * FROM v_dashboard_summary WHERE user_id = ${userId}`);
+  return result.rows[0] as any || {};
 }
 
 async function fetchMonthlyRevenue(userId: string) {
-  const { rows } = await query(
-    `SELECT TO_CHAR(month, 'Mon') AS label, revenue::float, invoice_count::int
+  const result = await db.execute(sql`
+     SELECT TO_CHAR(month, 'Mon') AS label, revenue::float, invoice_count::int AS "invoiceCount"
      FROM v_monthly_revenue
-     WHERE user_id=$1 AND month >= DATE_TRUNC('month', NOW() - INTERVAL '5 months')
-     ORDER BY month ASC`,
-    [userId]
-  );
-  return rows;
+     WHERE user_id = ${userId} AND month >= DATE_TRUNC('month', NOW() - INTERVAL '5 months')
+     ORDER BY month ASC
+  `);
+  return result.rows as any[];
 }
 
 async function fetchUpcomingDeadlines(userId: string) {
-  const { rows } = await query(
-    `SELECT p.id, p.name, p.deadline, p.priority, p.progress, c.name AS client_name
-     FROM projects p LEFT JOIN clients c ON c.id=p.client_id
-     WHERE p.user_id=$1 AND p.deadline BETWEEN NOW() AND NOW() + INTERVAL '14 days'
-       AND p.status='active'
-     ORDER BY p.deadline ASC LIMIT 5`,
-    [userId]
-  );
-  return rows;
+  return db.select({
+      id: projects.id,
+      name: projects.name,
+      deadline: projects.deadline,
+      priority: projects.priority,
+      progress: projects.progress,
+      clientName: clients.name
+  })
+  .from(projects)
+  .leftJoin(clients, eq(clients.id, projects.clientId))
+  .where(
+      and(
+          eq(projects.userId, userId),
+          between(projects.deadline, sql`NOW()::date`, sql`(NOW() + INTERVAL '14 days')::date`),
+          eq(projects.status, 'active')
+      )
+  )
+  .orderBy(projects.deadline)
+  .limit(5);
 }
 
 async function fetchRecentInvoices(userId: string) {
-  const { rows } = await query(
-    `SELECT i.id, i.invoice_number, i.amount::float, i.status, i.due_date, c.name AS client_name
-     FROM invoices i LEFT JOIN clients c ON c.id=i.client_id
-     WHERE i.user_id=$1
-     ORDER BY i.created_at DESC LIMIT 5`,
-    [userId]
-  );
-  return rows;
+  return db.select({
+      id: invoices.id,
+      invoiceNumber: invoices.invoiceNumber,
+      amount: sql<number>`${invoices.amount}::float`,
+      status: invoices.status,
+      dueDate: invoices.dueDate,
+      clientName: clients.name
+  })
+  .from(invoices)
+  .leftJoin(clients, eq(clients.id, invoices.clientId))
+  .where(eq(invoices.userId, userId))
+  .orderBy(desc(invoices.createdAt))
+  .limit(5);
 }
 
 async function fetchInvoiceStats(userId: string) {
   const [overdue, open] = await Promise.all([
-    query(`SELECT COUNT(*)::int AS count FROM invoices WHERE user_id=$1 AND status='pending' AND due_date < NOW()`, [userId]),
-    query(`SELECT COUNT(*)::int AS count FROM invoices WHERE user_id=$1 AND status IN ('draft','pending')`, [userId])
+      db.select({ count: count() })
+        .from(invoices)
+        .where(
+            and(
+                eq(invoices.userId, userId),
+                eq(invoices.status, 'pending'),
+                lt(invoices.dueDate, sql`CURRENT_DATE`)
+            )
+        ),
+      db.select({ count: count() })
+        .from(invoices)
+        .where(
+            and(
+                eq(invoices.userId, userId),
+                inArray(invoices.status, ['draft', 'pending'])
+            )
+        )
   ]);
+  
   return {
-    overdueCount: overdue.rows[0].count,
-    openCount: open.rows[0].count
+    overdueCount: overdue[0].count,
+    openCount: open[0].count
   };
 }
 
 async function fetchUserSettings(userId: string) {
-  const { rows } = await query('SELECT monthly_goal::float, tax_rate::float, se_tax_rate::float FROM users WHERE id=$1', [userId]);
-  return rows[0] || {};
+  const result = await db.select({
+      monthlyGoal: users.monthlyGoal,
+      taxRate: users.taxRate,
+      seTaxRate: users.seTaxRate
+  })
+  .from(users)
+  .where(eq(users.id, userId))
+  .limit(1);
+  
+  return result[0] || {};
 }
 
 async function fetchExpensesByCategory(userId: string) {
-  const { rows } = await query(
-    `SELECT category, SUM(amount)::float AS total
-     FROM expenses WHERE user_id=$1
-     GROUP BY category ORDER BY total DESC`,
-    [userId]
-  );
-  return rows;
+  return db.select({
+      category: expenses.category,
+      total: sql<number>`SUM(${expenses.amount})::float`
+  })
+  .from(expenses)
+  .where(eq(expenses.userId, userId))
+  .groupBy(expenses.category)
+  .orderBy(desc(sql`SUM(${expenses.amount})`));
+}
+
+async function fetchClientCount(userId: string) {
+    const result = await db.select({ count: count() })
+      .from(clients)
+      .where(and(eq(clients.userId, userId), eq(clients.status, 'active')));
+    return result[0].count;
 }

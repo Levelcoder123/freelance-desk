@@ -19,15 +19,15 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 // ── POST /auth/register
 authRouter.post('/register', authLimiter as any, validate(authValidation.registerSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { full_name, email, password } = req.body;
+    const { fullName, email, password } = req.body;
 
     const existing = await userService.findUserByEmail(email);
     if (existing) {
       return res.status(409).json({ error: 'Email already registered' });
     }
 
-    const password_hash = await authService.hashPassword(password);
-    const user = await userService.createUser({ full_name, email, password_hash });
+    const passwordHash = await authService.hashPassword(password);
+    const user = await userService.createUser({ fullName, email, passwordHash });
     
     if (!user.id) throw new Error('Failed to create user');
     
@@ -44,14 +44,14 @@ authRouter.post('/login', authLimiter as any, validate(authValidation.loginSchem
     const { email, password } = req.body;
 
     const user = await userService.findUserByEmail(email);
-    if (!user || !user.password_hash || !(await authService.comparePassword(password, user.password_hash))) {
+    if (!user || !user.passwordHash || !(await authService.comparePassword(password, user.passwordHash))) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
     const { access, refresh } = authService.generateTokens(user.id);
     await authService.saveRefreshToken(user.id, refresh);
 
-    const { password_hash, ...safeUser } = user;
+    const { passwordHash, ...safeUser } = user;
     res.json({ user: safeUser, access_token: access, refresh_token: refresh });
   } catch (err) { next(err); }
 });
@@ -70,7 +70,7 @@ authRouter.get('/me', authenticate as any, async (req: AuthenticatedRequest, res
 authRouter.patch('/me', authenticate as any, validate(authValidation.updateMeSchema), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.userId) return res.status(401).json({ error: 'Unauthorized' });
-    const allowed = ['full_name', 'email', 'monthly_goal', 'tax_rate', 'se_tax_rate', 'timezone'];
+    const allowed = ['fullName', 'email', 'monthlyGoal', 'taxRate', 'seTaxRate', 'timezone'];
     const updates = Object.fromEntries(
       Object.entries(req.body).filter(([k]) => allowed.includes(k))
     );
@@ -78,7 +78,7 @@ authRouter.patch('/me', authenticate as any, validate(authValidation.updateMeSch
       return res.status(400).json({ error: 'Nothing to update' });
     }
 
-    if (updates.email) {
+    if (updates.email && typeof updates.email === 'string') {
       const existing = await userService.findUserByEmail(updates.email);
       if (existing && existing.id !== req.userId) {
           return res.status(409).json({ error: 'Email already in use' });
@@ -95,7 +95,7 @@ authRouter.post('/forgot-password', authLimiter as any, validate(authValidation.
   const safeMessage = 'If that email is registered, a reset link has been sent.';
 
   try {
-    const email = req.body.email.toLowerCase().trim();
+    const email = (req.body.email as string).toLowerCase().trim();
     logger.info(`[auth] Password reset requested for: "${email}"`);
 
     const user = await userService.findUserByEmail(email);
@@ -128,14 +128,14 @@ authRouter.post('/reset-password', authLimiter as any, validate(authValidation.r
     const { token, password } = req.body;
 
     const resetToken = await passwordResetService.getValidPasswordResetToken(token);
-    if (!resetToken || !resetToken.user_id || !resetToken.id) {
+    if (!resetToken || !resetToken.userId || !resetToken.id) {
       return res.status(400).json({ message: 'This reset link is invalid or has expired.' });
     }
 
     const passwordHash = await authService.hashPassword(password);
-    await userService.updatePassword(resetToken.user_id, passwordHash);
+    await userService.updatePassword(resetToken.userId, passwordHash);
     await passwordResetService.usePasswordResetToken(resetToken.id);
-    await authService.revokeAllUserRefreshTokens(resetToken.user_id);
+    await authService.revokeAllUserRefreshTokens(resetToken.userId);
 
     return res.json({ message: 'Password updated successfully. You can now log in.' });
   } catch (err: any) {

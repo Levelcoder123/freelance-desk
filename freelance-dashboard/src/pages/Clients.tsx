@@ -5,6 +5,7 @@ import ClientForm from '../components/forms/ClientForm'
 import Table      from '../components/ui/Table'
 import Button     from '../components/ui/Button'
 import { Client } from '../types'
+import { formatCurrency } from '../utils/currency'
 
 export default function Clients() {
   const [search, setSearch]     = useState('')
@@ -34,6 +35,11 @@ export default function Clients() {
       label: 'Company',
       muted: true,
       render: (val: string | null) => val ?? '—',
+    },
+    {
+      key: 'hourlyRate',
+      label: 'Rate',
+      render: (val: string | null) => val ? formatCurrency(parseFloat(val)) : '—',
     },
     {
       key: 'actions',

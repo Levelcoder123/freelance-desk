@@ -1,13 +1,14 @@
 export interface User {
   id: string;
   email: string;
-  full_name: string;
+  fullName: string;
   plan: 'free' | 'pro';
-  monthly_goal: number | null;
-  tax_rate: number | null;
-  se_tax_rate: number | null;
+  monthlyGoal: number | null;
+  taxRate: number | null;
+  seTaxRate: number | null;
   timezone: string;
-  created_at: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AuthResponse {
@@ -32,19 +33,19 @@ export interface Client {
   phone: string | null;
   address: string | null;
   tags: string[] | null;
-  hourly_rate: number | null;
+  hourlyRate: number | null;
   status: 'active' | 'inactive';
   notes: string | null;
-  created_at: string;
-  updated_at: string;
-  invoice_count?: number;
-  total_earned?: number;
+  createdAt: string;
+  updatedAt: string;
+  invoiceCount?: number;
+  totalEarned?: number;
 }
 
 export interface Project {
   id: string;
-  user_id: string;
-  client_id: string | null;
+  userId: string;
+  clientId: string | null;
   name: string;
   description: string | null;
   status: 'active' | 'completed' | 'on_hold' | 'planned';
@@ -52,45 +53,48 @@ export interface Project {
   progress: number;
   deadline: string | null;
   budget: number | null;
-  created_at: string;
-  updated_at: string;
-  client_name?: string;
+  createdAt: string;
+  updatedAt: string;
+  clientName?: string;
 }
 
 export interface Expense {
   id: string;
-  user_id: string;
+  userId: string;
+  projectId: string | null;
   description: string;
   amount: number;
   currency: string;
   category: string;
-  expense_date: string;
+  expenseDate: string;
   notes: string | null;
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
+  projectName?: string;
 }
 
 export interface DashboardData {
   summary: {
-    total_earned: number;
-    total_expenses: number;
-    total_pending: number;
-    total_overdue: number;
-    overdue_invoices: number;
-    open_invoices: number;
-    total_outstanding: number;
-    expenses_by_category: { category: string; total: number }[];
+    totalEarned: number;
+    totalExpenses: number;
+    totalPending: number;
+    totalOverdue: number;
+    overdueInvoices: number;
+    openInvoices: number;
+    totalOutstanding: number;
+    expensesByCategory: { category: string; total: number }[];
+    activeClients: number;
   };
-  monthly_revenue: { label: string; revenue: number; invoice_count: number }[];
-  deadlines: { id: string; name: string; deadline: string; priority: string; progress: number; client_name: string }[];
-  recent_invoices: { id: string; invoice_number: string; amount: number; status: string; due_date: string; client_name: string }[];
+  monthlyRevenue: { label: string; revenue: number; invoiceCount: number }[];
+  deadlines: { id: string; name: string; deadline: string; priority: string; progress: number; clientName: string }[];
+  recentInvoices: { id: string; invoiceNumber: string; amount: number; status: string; dueDate: string; clientName: string }[];
   tax: {
     gross: number;
     expenses: number;
     taxable: number;
-    tax_owed: number;
-    tax_rate: number;
-    se_tax_rate: number;
+    taxOwed: number;
+    taxRate: number;
+    seTaxRate: number;
   };
   goal: {
     target: number;
@@ -108,26 +112,26 @@ export interface InvoiceLineItem {
 
 export interface Invoice {
   id: string;
-  user_id: string;
-  client_id: string | null;
-  project_id: string | null;
-  invoice_number: string;
+  userId: string;
+  clientId: string | null;
+  projectId: string | null;
+  invoiceNumber: string;
   status: 'draft' | 'pending' | 'paid' | 'overdue' | 'cancelled';
   amount: number;
   currency: string;
-  tax_rate: number;
-  total_amount: number;
-  tax_amount: number;
-  issue_date: string;
-  due_date: string | null;
-  paid_at: string | null;
+  taxRate: number;
+  totalAmount: number;
+  taxAmount: number;
+  issueDate: string;
+  dueDate: string | null;
+  paidAt: string | null;
   notes: string | null;
-  line_items: InvoiceLineItem[];
-  pdf_url: string | null;
-  stripe_payment_link: string | null;
-  created_at: string;
-  updated_at: string;
-  client_name?: string;
-  client_company?: string;
-  project_name?: string;
+  lineItems: InvoiceLineItem[];
+  pdfUrl: string | null;
+  stripePaymentLink: string | null;
+  createdAt: string;
+  updatedAt: string;
+  clientName?: string;
+  clientCompany?: string;
+  projectName?: string;
 }

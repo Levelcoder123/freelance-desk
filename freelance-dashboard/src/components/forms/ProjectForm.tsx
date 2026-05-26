@@ -16,17 +16,17 @@ const empty = {
   description: '',
   status:      'active',
   budget:      '',
-  dueDate:     '',
+  deadline:    '',
 }
 
 export default function ProjectForm({ initial = null, onSubmit, loading }: ProjectFormProps) {
   const [form, setForm] = useState(initial ? {
     name:        initial.name        ?? '',
-    clientId:    initial.client_id   ?? '',
+    clientId:    initial.clientId    ?? '',
     description: initial.description ?? '',
     status:      initial.status      ?? 'active',
     budget:      String(initial.budget ?? ''),
-    dueDate:     initial.deadline    ? initial.deadline.slice(0, 10) : '',
+    deadline:    initial.deadline    ? initial.deadline.slice(0, 10) : '',
   } : empty)
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -53,12 +53,12 @@ export default function ProjectForm({ initial = null, onSubmit, loading }: Proje
     const errs = validate()
     if (Object.keys(errs).length) { setErrors(errs); return }
     onSubmit({
-      client_id:   form.clientId   || undefined,
+      clientId:    form.clientId   || null,
       name:        form.name,
-      description: form.description || undefined,
+      description: form.description || null,
       status:      form.status,
-      budget:      form.budget ? parseFloat(form.budget) : undefined,
-      deadline:    form.dueDate    || undefined,
+      budget:      form.budget ? parseFloat(form.budget) : null,
+      deadline:    form.deadline    || null,
     })
   }
 
@@ -99,7 +99,7 @@ export default function ProjectForm({ initial = null, onSubmit, loading }: Proje
 
       <div style={{ marginBottom: 14 }}>
         <label>Due date</label>
-        <input type="date" value={form.dueDate} onChange={set('dueDate')} />
+        <input type="date" value={form.deadline} onChange={set('deadline')} />
       </div>
 
       <div style={{ marginBottom: 20 }}>

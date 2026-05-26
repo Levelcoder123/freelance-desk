@@ -37,24 +37,24 @@ export default function Dashboard() {
       <div className="stat-grid">
         <StatCard
           label="Total revenue"
-          value={formatCurrency(data?.summary?.total_earned ?? 0)}
+          value={formatCurrency(data?.summary?.totalEarned ?? 0)}
           changeDir="up"
           icon={<IconRevenue />}
         />
         <StatCard
           label="Outstanding"
-          value={formatCurrency(data?.summary?.total_outstanding ?? 0)}
+          value={formatCurrency(data?.summary?.totalOutstanding ?? 0)}
           changeDir="down"
           icon={<IconOutstanding />}
         />
         <StatCard
           label="Active clients"
-          value={(data as any)?.summary?.active_clients ?? 0}
+          value={data?.summary?.activeClients ?? 0}
           icon={<IconClients />}
         />
         <StatCard
           label="Open invoices"
-          value={data?.summary?.open_invoices ?? 0}
+          value={data?.summary?.openInvoices ?? 0}
           icon={<IconInvoices />}
         />
       </div>
@@ -64,7 +64,7 @@ export default function Dashboard() {
         <div className="card card-pad">
           <p className="chart-label">Revenue over time</p>
           <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={data?.monthly_revenue ?? []} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} style={{ background: 'transparent' }}>
+            <AreaChart data={data?.monthlyRevenue ?? []} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} style={{ background: 'transparent' }}>
               <defs>
                 <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%"  stopColor={areaColor} stopOpacity={0.15}/>
@@ -86,7 +86,7 @@ export default function Dashboard() {
         <div className="card card-pad">
           <p className="chart-label">Expenses by category</p>
           <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={data?.summary?.expenses_by_category ?? []} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} style={{ background: 'transparent' }}>
+            <BarChart data={data?.summary?.expensesByCategory ?? []} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} style={{ background: 'transparent' }}>
               <CartesianGrid stroke={gridColor} strokeDasharray="3 3" vertical={false}/>
               <XAxis dataKey="category" tick={{ fontSize: 10, fill: tickColor }} axisLine={false} tickLine={false}/>
               <YAxis tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} tickFormatter={v => v >= 1000 ? `$${(v/1000).toFixed(0)}k` : `$${v}`}/>
@@ -114,7 +114,7 @@ export default function Dashboard() {
                 <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                   <div style={{ minWidth: 0 }}>
                     <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</p>
-                    <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '2px 0 0' }}>{p.client_name}</p>
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '2px 0 0' }}>{p.clientName}</p>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                     <div style={{ width: 80, height: 4, borderRadius: 99, background: 'var(--bg-subtle)', overflow: 'hidden' }}>
@@ -133,15 +133,15 @@ export default function Dashboard() {
         {/* Recent invoices */}
         <div className="card card-pad">
           <p className="chart-label">Recent invoices</p>
-          {(data?.recent_invoices ?? []).length === 0 ? (
+          {(data?.recentInvoices ?? []).length === 0 ? (
             <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8 }}>No invoices yet.</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
-              {(data?.recent_invoices ?? []).map(inv => (
+              {(data?.recentInvoices ?? []).map(inv => (
                 <div key={inv.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                   <div style={{ minWidth: 0 }}>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>{inv.client_name}</p>
-                    <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '2px 0 0', fontFamily: 'var(--font-mono)' }}>{inv.invoice_number}</p>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>{inv.clientName}</p>
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '2px 0 0', fontFamily: 'var(--font-mono)' }}>{inv.invoiceNumber}</p>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
                     <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{formatCurrency(inv.amount)}</span>

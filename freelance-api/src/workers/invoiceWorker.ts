@@ -1,7 +1,9 @@
 // src/workers/invoiceWorker.ts
 import { Worker, Queue, Job } from 'bullmq';
 import redis from '../config/redis.js';
-import { query } from '../config/database.js';
+import { db } from '../config/database.js';
+import { invoices, clients, users } from '../db/schema.js';
+import { eq } from 'drizzle-orm';
 import { generateInvoicePdf, uploadToStorage } from '../services/pdfService.js';
 import { createPaymentLink } from '../services/stripeService.js';
 import { sendInvoiceEmail, sendPaymentConfirmation } from '../services/emailService.js';
@@ -12,7 +14,7 @@ interface InvoiceJobData {
     invoiceId: string;
 }
 
-// ── Queue export — imported by the /invoices/:id/send route ──────────────────
+// ── Queue export ─────────────────────────────────────────────────────────────
 export const invoiceQueue = new Queue('invoices', { connection: redis });
 
 // ── Worker ───────────────────────────────────────────────────────────────────
@@ -20,21 +22,31 @@ const worker = new Worker('invoices', async (job: Job<InvoiceJobData>) => {
     const { invoiceId } = job.data;
     logger.info(`[invoiceWorker] Starting job ${job.id} for invoice ${invoiceId}`);
 
-    // 1. Fetch full invoice + client details
-    const { rows } = await query(
-        `SELECT i.*,
-            c.name    AS client_name,
-            c.email   AS client_email,
-            c.address AS client_address,
-            u.full_name AS owner_name
-     FROM invoices i
-     LEFT JOIN clients c ON c.id = i.client_id
-     LEFT JOIN users   u ON u.id = i.user_id
-     WHERE i.id = $1`,
-        [invoiceId]
-    );
+    const result = await db.select({
+        id: invoices.id,
+        invoiceNumber: invoices.invoiceNumber,
+        userId: invoices.userId,
+        currency: invoices.currency,
+        amount: invoices.amount,
+        taxRate: invoices.taxRate,
+        taxAmount: invoices.taxAmount,
+        totalAmount: invoices.totalAmount,
+        issueDate: invoices.issueDate,
+        dueDate: invoices.dueDate,
+        lineItems: invoices.lineItems,
+        notes: invoices.notes,
+        client_name: clients.name,
+        client_email: clients.email,
+        client_address: clients.address,
+        owner_name: users.fullName
+    })
+    .from(invoices)
+    .leftJoin(clients, eq(clients.id, invoices.clientId))
+    .leftJoin(users, eq(users.id, invoices.userId))
+    .where(eq(invoices.id, invoiceId))
+    .limit(1);
 
-    const invoice = rows[0] as Invoice;
+    const invoice = result[0] as any; // Cast to any for helper compatibility
     if (!invoice) throw new Error(`Invoice ${invoiceId} not found`);
     if (!invoice.client_email) throw new Error(`Invoice ${invoiceId} has no client email`);
 
@@ -42,14 +54,14 @@ const worker = new Worker('invoices', async (job: Job<InvoiceJobData>) => {
 
     // 2. Generate PDF
     logger.info(`[invoiceWorker] Job ${job.id}: Generating PDF...`);
-    const pdfBuffer = await generateInvoicePdf(invoice);
+    const pdfBuffer = await generateInvoicePdf(invoice as Invoice);
     await job.updateProgress(40);
 
     // 3. Upload PDF to R2 / S3
     let pdfUrl: string | null = null;
     try {
         logger.info(`[invoiceWorker] Job ${job.id}: Uploading to storage...`);
-        const filename = `invoices/${invoice.user_id}/${invoice.invoice_number}.pdf`;
+        const filename = `invoices/${invoice.userId}/${invoice.invoiceNumber}.pdf`;
         pdfUrl = await uploadToStorage(pdfBuffer, filename);
     } catch (err: any) {
         logger.warn(`[invoiceWorker] Job ${job.id}: Storage upload failed, continuing without PDF link`, err.message);
@@ -60,27 +72,22 @@ const worker = new Worker('invoices', async (job: Job<InvoiceJobData>) => {
     let paymentLink: string | null = null;
     try {
         logger.info(`[invoiceWorker] Job ${job.id}: Creating Stripe link...`);
-        paymentLink = await createPaymentLink(invoice);
+        paymentLink = await createPaymentLink(invoice as Invoice);
     } catch (err: any) {
         logger.warn(`[invoiceWorker] Job ${job.id}: Stripe link creation failed, continuing without payment link`, err.message);
     }
     await job.updateProgress(75);
 
     // 5. Persist back to DB
-    await query(
-        `UPDATE invoices
-     SET pdf_url = $1, stripe_payment_link = $2
-     WHERE id = $3`,
-        [pdfUrl, paymentLink, invoiceId]
-    );
+    await db.update(invoices)
+        .set({ pdfUrl, stripePaymentLink: paymentLink })
+        .where(eq(invoices.id, invoiceId));
+    
     await job.updateProgress(85);
 
-    // Format the date for the email
-    const displayDate = invoice.due_date 
-        ? new Date(invoice.due_date).toLocaleDateString('en-US', { 
-            month: 'long', 
-            day: 'numeric', 
-            year: 'numeric' 
+    const displayDate = invoice.dueDate 
+        ? new Date(invoice.dueDate).toLocaleDateString('en-US', { 
+            month: 'long', day: 'numeric', year: 'numeric' 
           })
         : 'on receipt';
 
@@ -88,9 +95,9 @@ const worker = new Worker('invoices', async (job: Job<InvoiceJobData>) => {
     logger.info(`[invoiceWorker] Job ${job.id}: Sending email via Resend to ${invoice.client_email}...`);
     await sendInvoiceEmail({
         to: invoice.client_email,
-        invoiceNumber: invoice.invoice_number,
+        invoiceNumber: invoice.invoiceNumber,
         clientName: invoice.client_name ?? 'there',
-        amount: parseFloat(invoice.total_amount as any),
+        amount: parseFloat(invoice.totalAmount as any),
         currency: invoice.currency,
         dueDate: displayDate,
         pdfUrl,
@@ -103,38 +110,34 @@ const worker = new Worker('invoices', async (job: Job<InvoiceJobData>) => {
 }, {
     connection: redis,
     concurrency: 5,
-    defaultJobOptions: {
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 5000 },
-        removeOnComplete: { count: 100 },
-        removeOnFail: { count: 200 },
-    },
 });
 
 // ── Payment-confirmed job ─────────────────────────────────────────────────────
-// Dispatched from the Stripe webhook handler in index.js after marking paid.
 export const confirmationQueue = new Queue('confirmations', { connection: redis });
 
 const confirmationWorker = new Worker('confirmations', async (job: Job<InvoiceJobData>) => {
     const { invoiceId } = job.data;
 
-    const { rows } = await query(
-        `SELECT i.invoice_number, i.total_amount, i.currency,
-            c.name AS client_name, c.email AS client_email
-     FROM invoices i
-     LEFT JOIN clients c ON c.id = i.client_id
-     WHERE i.id = $1`,
-        [invoiceId]
-    );
+    const result = await db.select({
+        invoiceNumber: invoices.invoiceNumber,
+        totalAmount: invoices.totalAmount,
+        currency: invoices.currency,
+        client_name: clients.name,
+        client_email: clients.email
+    })
+    .from(invoices)
+    .leftJoin(clients, eq(clients.id, invoices.clientId))
+    .where(eq(invoices.id, invoiceId))
+    .limit(1);
 
-    const invoice = rows[0] as Invoice;
-    if (!invoice?.client_email) return; // no email on file — skip silently
+    const invoice = result[0];
+    if (!invoice?.client_email) return;
 
     await sendPaymentConfirmation({
         to: invoice.client_email,
         clientName: invoice.client_name ?? 'there',
-        invoiceNumber: invoice.invoice_number,
-        amount: parseFloat(invoice.total_amount as any),
+        invoiceNumber: invoice.invoiceNumber,
+        amount: parseFloat(invoice.totalAmount as any),
         currency: invoice.currency,
     });
 }, { connection: redis });

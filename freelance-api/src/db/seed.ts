@@ -41,6 +41,14 @@ async function seed() {
   `, [DEMO_EMAIL, passwordHash, DEMO_NAME]);
 
     const userId = user.id;
+
+    // ── 1b. Cleanup Existing Demo Data ────────────────────────────────────────
+    logger.info('→ Cleaning up old demo data…');
+    await query('DELETE FROM expenses WHERE user_id = $1', [userId]);
+    await query('DELETE FROM invoices WHERE user_id = $1', [userId]);
+    await query('DELETE FROM projects WHERE user_id = $1', [userId]);
+    await query('DELETE FROM clients WHERE user_id = $1', [userId]);
+
     logger.info(`  ✓ User: ${DEMO_EMAIL} / ${DEMO_PASSWORD}\n`);
 
     // ── 2. Clients ─────────────────────────────────────────────────────────────
@@ -181,28 +189,28 @@ async function seed() {
     // ── 5. Expenses ────────────────────────────────────────────────────────────
     logger.info('→ Creating expenses…');
     const expenseData = [
-        { description: 'Adobe Creative Cloud', amount: 54.99, category: 'Software', date: daysAgo(5) },
-        { description: 'Figma Pro subscription', amount: 15.00, category: 'Software', date: daysAgo(5) },
-        { description: 'MacBook Pro M3', amount: 2499.00, category: 'Hardware', date: daysAgo(90) },
-        { description: 'External SSD 2TB', amount: 89.99, category: 'Hardware', date: daysAgo(60) },
-        { description: 'Flight to client meeting', amount: 320.00, category: 'Travel', date: daysAgo(20) },
-        { description: 'Hotel — 2 nights', amount: 240.00, category: 'Travel', date: daysAgo(19) },
-        { description: 'Google Ads campaign', amount: 200.00, category: 'Marketing', date: daysAgo(15) },
-        { description: 'LinkedIn Premium', amount: 39.99, category: 'Marketing', date: daysAgo(5) },
-        { description: 'Office desk & chair', amount: 650.00, category: 'Office', date: daysAgo(45) },
-        { description: 'Notion Pro', amount: 16.00, category: 'Software', date: daysAgo(5) },
-        { description: 'Udemy — React course', amount: 14.99, category: 'Education', date: daysAgo(30) },
-        { description: 'Design books x3', amount: 87.00, category: 'Education', date: daysAgo(25) },
-        { description: 'Internet bill — April', amount: 59.99, category: 'Office', date: daysAgo(10) },
-        { description: 'Dribbble Pro', amount: 8.00, category: 'Marketing', date: daysAgo(5) },
-        { description: 'AWS hosting', amount: 22.50, category: 'Software', date: daysAgo(2) },
+        { description: 'Adobe Creative Cloud', amount: 54.99, category: 'Software', date: daysAgo(5), project: 0 },
+        { description: 'Figma Pro subscription', amount: 15.00, category: 'Software', date: daysAgo(5), project: 2 },
+        { description: 'MacBook Pro M3', amount: 2499.00, category: 'Hardware', date: daysAgo(90), project: null },
+        { description: 'External SSD 2TB', amount: 89.99, category: 'Hardware', date: daysAgo(60), project: null },
+        { description: 'Flight to client meeting', amount: 320.00, category: 'Travel', date: daysAgo(20), project: 1 },
+        { description: 'Hotel — 2 nights', amount: 240.00, category: 'Travel', date: daysAgo(19), project: 1 },
+        { description: 'Google Ads campaign', amount: 200.00, category: 'Marketing', date: daysAgo(15), project: 3 },
+        { description: 'LinkedIn Premium', amount: 39.99, category: 'Marketing', date: daysAgo(5), project: null },
+        { description: 'Office desk & chair', amount: 650.00, category: 'Office', date: daysAgo(45), project: null },
+        { description: 'Notion Pro', amount: 16.00, category: 'Software', date: daysAgo(5), project: 4 },
+        { description: 'Udemy — React course', amount: 14.99, category: 'Education', date: daysAgo(30), project: null },
+        { description: 'Design books x3', amount: 87.00, category: 'Education', date: daysAgo(25), project: null },
+        { description: 'Internet bill — April', amount: 59.99, category: 'Office', date: daysAgo(10), project: null },
+        { description: 'Dribbble Pro', amount: 8.00, category: 'Marketing', date: daysAgo(5), project: 5 },
+        { description: 'AWS hosting', amount: 22.50, category: 'Software', date: daysAgo(2), project: 1 },
     ];
 
     for (const e of expenseData) {
         await query(`
-      INSERT INTO expenses (user_id, description, amount, currency, category, expense_date)
-      VALUES ($1,$2,$3,'USD',$4,$5)
-    `, [userId, e.description, e.amount, e.category, e.date]);
+      INSERT INTO expenses (user_id, project_id, description, amount, currency, category, expense_date)
+      VALUES ($1,$2,$3,$4,'USD',$5,$6)
+    `, [userId, e.project !== null ? projects[e.project].id : null, e.description, e.amount, e.category, e.date]);
         logger.info(`  ✓ ${e.description} — $${e.amount}`);
     }
     logger.info('');

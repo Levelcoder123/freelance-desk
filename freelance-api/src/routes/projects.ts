@@ -30,7 +30,7 @@ projectsRouter.post('/', validate(projectValidation.projectSchema), async (req: 
 projectsRouter.patch('/:id', validate(projectValidation.updateSchema), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.userId) return res.status(401).json({ error: 'Unauthorized' });
-    const allowed = ['client_id','name','description','status','priority','progress','deadline','budget'];
+    const allowed = ['clientId', 'name', 'description', 'status', 'priority', 'progress', 'deadline', 'budget'];
     const updates = Object.fromEntries(Object.entries(req.body).filter(([k]) => allowed.includes(k)));
     if (!Object.keys(updates).length) return res.status(400).json({ error: 'Nothing to update' });
 

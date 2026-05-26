@@ -1,128 +1,176 @@
-import { query } from '../config/database.js';
+import { db } from '../config/database.js';
+import { invoices, clients, projects } from '../db/schema.js';
 import { invoiceQueue } from '../workers/invoiceWorker.js';
+import { eq, and, sql, desc, count, or, ilike } from 'drizzle-orm';
 import { Invoice } from '../types/index.js';
+
+function mapInvoice(row: any): Invoice {
+  if (!row) return row;
+  return {
+    ...row,
+    amount: row.amount ? parseFloat(row.amount) : 0,
+    taxRate: row.taxRate ? parseFloat(row.taxRate) : 0,
+    taxAmount: row.taxAmount ? parseFloat(row.taxAmount) : 0,
+    totalAmount: row.totalAmount ? parseFloat(row.totalAmount) : 0,
+  } as Invoice;
+}
 
 interface GetInvoicesFilters {
   status?: string;
-  client_id?: string;
+  clientId?: string;
   search?: string;
   page?: number;
   limit?: number;
 }
 
-export async function getInvoices(userId: string, { status, client_id, search, page = 1, limit = 20 }: GetInvoicesFilters) {
+export async function getInvoices(userId: string, { status, clientId, search, page = 1, limit = 20 }: GetInvoicesFilters) {
   const offset = (page - 1) * limit;
-  const params: any[] = [userId];
-  let where = 'WHERE i.user_id=$1';
 
-  if (status)    { params.push(status);    where += ` AND i.status=$${params.length}`; }
-  if (client_id) { params.push(client_id); where += ` AND i.client_id=$${params.length}`; }
-  if (search)    { params.push(`%${search}%`); where += ` AND (i.invoice_number ILIKE $${params.length} OR c.name ILIKE $${params.length})`; }
+  let where = eq(invoices.userId, userId);
 
-  const limitParamIndex = params.length + 1;
-  const offsetParamIndex = params.length + 2;
-  params.push(limit, offset);
+  if (status)   { where = and(where, eq(invoices.status, status)) as any; }
+  if (clientId) { where = and(where, eq(invoices.clientId, clientId)) as any; }
+  if (search)    { 
+      where = and(
+          where,
+          or(
+              ilike(invoices.invoiceNumber, `%${search}%`),
+              ilike(clients.name, `%${search}%`)
+          )
+      ) as any;
+  }
 
-  const { rows } = await query(
-    `SELECT i.*, c.name AS client_name, c.company AS client_company, p.name AS project_name
-     FROM invoices i
-     LEFT JOIN clients  c ON c.id = i.client_id
-     LEFT JOIN projects p ON p.id = i.project_id
-     ${where}
-     ORDER BY i.created_at DESC
-     LIMIT $${limitParamIndex} OFFSET $${offsetParamIndex}`,
-    params
-  );
+  const result = await db.select({
+      id: invoices.id,
+      userId: invoices.userId,
+      clientId: invoices.clientId,
+      projectId: invoices.projectId,
+      invoiceNumber: invoices.invoiceNumber,
+      status: invoices.status,
+      amount: invoices.amount,
+      currency: invoices.currency,
+      taxRate: invoices.taxRate,
+      taxAmount: invoices.taxAmount,
+      totalAmount: invoices.totalAmount,
+      issueDate: invoices.issueDate,
+      dueDate: invoices.dueDate,
+      paidAt: invoices.paidAt,
+      notes: invoices.notes,
+      pdfUrl: invoices.pdfUrl,
+      stripePaymentLink: invoices.stripePaymentLink,
+      lineItems: invoices.lineItems,
+      createdAt: invoices.createdAt,
+      updatedAt: invoices.updatedAt,
+      clientName: clients.name,
+      clientCompany: clients.company,
+      projectName: projects.name
+  })
+  .from(invoices)
+  .leftJoin(clients, eq(clients.id, invoices.clientId))
+  .leftJoin(projects, eq(projects.id, invoices.projectId))
+  .where(where)
+  .orderBy(desc(invoices.createdAt))
+  .limit(limit)
+  .offset(offset);
 
-  const cntParams = params.slice(0, params.length - 2);
-  const { rows: cr } = await query(
-    `SELECT COUNT(*)::int FROM invoices i LEFT JOIN clients c ON c.id = i.client_id ${where}`,
-    cntParams
-  );
+  const [totalResult] = await db.select({ count: count() })
+    .from(invoices)
+    .leftJoin(clients, eq(clients.id, invoices.clientId))
+    .where(where);
 
   return {
-    data: rows as Invoice[],
+    data: result.map(mapInvoice),
     meta: {
-      total: cr[0].count,
+      total: totalResult.count,
       page: +page,
       limit: +limit
     }
   };
 }
 
-export async function createInvoice(userId: string, data: Partial<Invoice>): Promise<Invoice> {
-  const {
-    client_id, project_id, invoice_number, status, amount,
-    currency, tax_rate, issue_date, due_date, notes, line_items,
-  } = data;
-
-  const finalIssueDate = issue_date || new Date().toISOString().slice(0, 10);
-
-  const { rows } = await query(
-    `INSERT INTO invoices
-       (user_id,client_id,project_id,invoice_number,status,amount,currency,tax_rate,issue_date,due_date,notes,line_items)
-     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
-     RETURNING *`,
-    [userId, client_id, project_id, invoice_number, status, amount,
-      currency, tax_rate, finalIssueDate, due_date, notes, JSON.stringify(line_items)]
-  );
-  return rows[0];
+export async function createInvoice(userId: string, data: any) {
+  const result = await db.insert(invoices)
+    .values({ ...data, userId })
+    .returning();
+  return mapInvoice(result[0]);
 }
 
-export async function getInvoiceById(userId: string, id: string): Promise<Invoice | null> {
-  const { rows } = await query(
-    `SELECT i.*, c.name AS client_name, c.email AS client_email,
-            c.company AS client_company, c.address AS client_address,
-            p.name AS project_name
-     FROM invoices i
-     LEFT JOIN clients  c ON c.id = i.client_id
-     LEFT JOIN projects p ON p.id = i.project_id
-     WHERE i.id=$1 AND i.user_id=$2`,
-    [id, userId]
-  );
-  return rows[0] || null;
+export async function getInvoiceById(userId: string, id: string) {
+  const result = await db.select({
+      id: invoices.id,
+      userId: invoices.userId,
+      clientId: invoices.clientId,
+      projectId: invoices.projectId,
+      invoiceNumber: invoices.invoiceNumber,
+      status: invoices.status,
+      amount: invoices.amount,
+      currency: invoices.currency,
+      taxRate: invoices.taxRate,
+      taxAmount: invoices.taxAmount,
+      totalAmount: invoices.totalAmount,
+      issueDate: invoices.issueDate,
+      dueDate: invoices.dueDate,
+      paidAt: invoices.paidAt,
+      notes: invoices.notes,
+      pdfUrl: invoices.pdfUrl,
+      stripePaymentLink: invoices.stripePaymentLink,
+      lineItems: invoices.lineItems,
+      createdAt: invoices.createdAt,
+      updatedAt: invoices.updatedAt,
+      clientName: clients.name,
+      clientEmail: clients.email,
+      clientCompany: clients.company,
+      clientAddress: clients.address,
+      projectName: projects.name
+  })
+  .from(invoices)
+  .leftJoin(clients, eq(clients.id, invoices.clientId))
+  .leftJoin(projects, eq(projects.id, invoices.projectId))
+  .where(and(eq(invoices.id, id), eq(invoices.userId, userId)))
+  .limit(1);
+
+  return mapInvoice(result[0]) || null;
 }
 
-export async function updateInvoice(userId: string, id: string, updates: Partial<Invoice>): Promise<Invoice | null> {
-  const finalUpdates = { ...updates };
-  // Auto-set paid_at when status → paid
-  if (finalUpdates.status === 'paid') finalUpdates.paid_at = new Date();
-  if (finalUpdates.status && finalUpdates.status !== 'paid') finalUpdates.paid_at = null;
+export async function updateInvoice(userId: string, id: string, updates: any) {
+  const { id: _, userId: __, createdAt: ___, ...cleanUpdates } = updates;
+  
+  if (cleanUpdates.status === 'paid') cleanUpdates.paidAt = new Date();
+  if (cleanUpdates.status && cleanUpdates.status !== 'paid') cleanUpdates.paidAt = null;
 
-  // Serialize JSONB field
-  if (finalUpdates.line_items !== undefined) {
-    (finalUpdates as any).line_items = JSON.stringify(finalUpdates.line_items)
-  }
-
-  const keys = Object.keys(finalUpdates);
-  if (keys.length === 0) return getInvoiceById(userId, id);
-
-  const fields = keys.map((k, i) => `${k}=$${i + 3}`).join(', ');
-  const { rows } = await query(
-    `UPDATE invoices SET ${fields} WHERE id=$1 AND user_id=$2 RETURNING *`,
-    [id, userId, ...Object.values(finalUpdates)]
-  );
-  return rows[0] || null;
+  const result = await db.update(invoices)
+    .set({ ...cleanUpdates, updatedAt: new Date() })
+    .where(and(eq(invoices.id, id), eq(invoices.userId, userId)))
+    .returning();
+  
+  return mapInvoice(result[0]) || null;
 }
 
 export async function deleteInvoice(userId: string, id: string): Promise<boolean> {
-  const { rowCount } = await query(
-    'DELETE FROM invoices WHERE id=$1 AND user_id=$2',
-    [id, userId]
-  );
-  return (rowCount ?? 0) > 0;
+  const result = await db.delete(invoices)
+    .where(and(eq(invoices.id, id), eq(invoices.userId, userId)))
+    .returning({ id: invoices.id });
+  
+  return result.length > 0;
 }
 
-export async function sendInvoice(userId: string, id: string): Promise<Invoice | null> {
-  const { rows } = await query(
-    `SELECT i.*, c.email AS client_email, c.name AS client_name
-     FROM invoices i LEFT JOIN clients c ON c.id=i.client_id
-     WHERE i.id=$1 AND i.user_id=$2`,
-    [id, userId]
-  );
-  if (!rows[0]) return null;
+export async function sendInvoice(userId: string, id: string) {
+  const result = await db.select({
+      id: invoices.id,
+      invoiceNumber: invoices.invoiceNumber,
+      clientEmail: clients.email,
+      clientName: clients.name
+  })
+  .from(invoices)
+  .leftJoin(clients, eq(clients.id, invoices.clientId))
+  .where(and(eq(invoices.id, id), eq(invoices.userId, userId)))
+  .limit(1);
+
+  const invoice = result[0];
+  if (!invoice) return null;
 
   await invoiceQueue.add('send-invoice', { invoiceId: id });
-  await query(`UPDATE invoices SET status='pending' WHERE id=$1`, [id]);
-  return rows[0];
+  await db.update(invoices).set({ status: 'pending' }).where(eq(invoices.id, id));
+  
+  return invoice;
 }

@@ -1,24 +1,24 @@
 export interface User {
   id: string;
   email: string;
-  full_name: string;
+  fullName: string;
   plan: 'free' | 'pro';
-  monthly_goal: number | null;
-  tax_rate: number | null;
-  se_tax_rate: number | null;
+  monthlyGoal: string | null;
+  taxRate: string | null;
+  seTaxRate: string | null;
   timezone: string;
-  password_hash?: string;
-  created_at: Date;
-  updated_at: Date;
+  passwordHash?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface RefreshToken {
   id: string;
-  user_id: string;
-  token_hash: string;
+  userId: string;
+  tokenHash: string;
   revoked: boolean;
-  expires_at: Date;
-  created_at: Date;
+  expiresAt: Date;
+  createdAt: Date;
 }
 
 export interface Tokens {
@@ -28,37 +28,37 @@ export interface Tokens {
 
 export interface Client {
   id: string;
-  user_id: string;
+  userId: string;
   name: string;
   company: string | null;
   email: string | null;
   phone: string | null;
   address: string | null;
   tags: string[] | null;
-  hourly_rate: number | null;
+  hourlyRate: string | null;
   status: 'active' | 'inactive' | 'lead';
   notes: string | null;
-  created_at: Date;
-  updated_at: Date;
-  invoice_count?: number;
-  total_earned?: number;
+  createdAt: Date;
+  updatedAt: Date;
+  invoiceCount?: number;
+  totalEarned?: number;
   invoices?: any[];
 }
 
 export interface Project {
   id: string;
-  user_id: string;
-  client_id: string | null;
+  userId: string;
+  clientId: string | null;
   name: string;
   description: string | null;
   status: 'active' | 'completed' | 'on_hold' | 'planned';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   progress: number;
-  deadline: Date | null;
-  budget: number | null;
-  created_at: Date;
-  updated_at: Date;
-  client_name?: string;
+  deadline: string | null;
+  budget: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  clientName?: string;
 }
 
 export interface InvoiceLineItem {
@@ -70,25 +70,25 @@ export interface InvoiceLineItem {
 
 export interface Invoice {
   id: string;
-  user_id: string;
-  client_id: string | null;
-  project_id: string | null;
-  invoice_number: string;
+  userId: string;
+  clientId: string | null;
+  projectId: string | null;
+  invoiceNumber: string;
   status: 'draft' | 'pending' | 'paid' | 'overdue' | 'cancelled';
-  amount: number;
+  amount: string;
   currency: string;
-  tax_rate: number;
-  total_amount: number;
-  tax_amount: number;
-  issue_date: Date;
-  due_date: Date | null;
-  paid_at: Date | null;
+  taxRate: string;
+  totalAmount: string;
+  taxAmount: string;
+  issueDate: string;
+  dueDate: string | null;
+  paidAt: Date | null;
   notes: string | null;
-  line_items: InvoiceLineItem[];
-  pdf_url: string | null;
-  stripe_payment_link: string | null;
-  created_at: Date;
-  updated_at: Date;
+  lineItems: InvoiceLineItem[];
+  pdfUrl: string | null;
+  stripePaymentLink: string | null;
+  createdAt: Date;
+  updatedAt: Date;
   client_name?: string;
   client_email?: string;
   client_company?: string;
@@ -98,13 +98,13 @@ export interface Invoice {
 
 export interface Expense {
   id: string;
-  user_id: string;
+  userId: string;
   description: string;
-  amount: number;
+  amount: string;
   currency: string;
   category: string;
-  expense_date: Date;
+  expenseDate: string;
   notes: string | null;
-  created_at: Date;
-  updated_at: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }

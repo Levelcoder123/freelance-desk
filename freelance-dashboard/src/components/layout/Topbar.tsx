@@ -27,8 +27,8 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   const title    = PAGE_TITLES[location.pathname] ?? 'Freelance'
-  const initials = user?.full_name
-    ? user.full_name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()
+  const initials = user?.fullName
+    ? user.fullName.split(' ').map((p: string) => p[0]).join('').slice(0, 2).toUpperCase()
     : user?.email?.[0]?.toUpperCase() ?? 'U'
 
   useEffect(() => {
@@ -84,7 +84,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
           >
             <div className="avatar">{initials}</div>
             <div className="profile-info">
-              <span className="profile-name">{user?.full_name ?? 'Account'}</span>
+              <span className="profile-name">{user?.fullName ?? 'Account'}</span>
               <span className="profile-email">{user?.email ?? ''}</span>
             </div>
             <svg

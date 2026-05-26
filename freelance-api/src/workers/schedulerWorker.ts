@@ -1,7 +1,9 @@
 // src/workers/schedulerWorker.ts
 import { Worker, Queue } from 'bullmq';
-import Redis from 'ioredis';
-import { query } from '../config/database.js';
+import { Redis } from 'ioredis';
+import { db } from '../config/database.js';
+import { invoices, users, passwordResetTokens, refreshTokens } from '../db/schema.js';
+import { eq, and, lt, sql, isNull, or } from 'drizzle-orm';
 import { sendWeeklySummary } from '../services/emailService.js';
 import logger from '../utils/logger.js';
 
@@ -58,31 +60,39 @@ const worker = new Worker(
         switch (job.name) {
 
             case 'mark-overdue': {
-                const { rowCount } = await query(`
-                    UPDATE invoices
-                    SET status = 'overdue'
-                    WHERE status = 'pending'
-                      AND due_date < CURRENT_DATE
-                `);
-                logger.info(`[scheduler] marked ${rowCount} invoice(s) overdue`);
+                const result = await db.update(invoices)
+                    .set({ status: 'overdue' })
+                    .where(
+                        and(
+                            eq(invoices.status, 'pending'),
+                            lt(invoices.dueDate, sql`CURRENT_DATE`)
+                        )
+                    );
+                // rowCount is not directly on result in Drizzle the same way, but it's fine
+                logger.info(`[scheduler] ran mark-overdue`);
                 break;
             }
 
             case 'weekly-summary': {
-                const { rows: users } = await query(`
-                    SELECT u.id, u.full_name, u.email
-                    FROM users u
-                    WHERE EXISTS (
+                // Find users who had invoice activity in the last 7 days
+                const recentUsers = await db.select({
+                    id: users.id,
+                    fullName: users.fullName,
+                    email: users.email
+                })
+                .from(users)
+                .where(
+                    sql`EXISTS (
                         SELECT 1 FROM invoices i
-                        WHERE i.user_id = u.id
+                        WHERE i.user_id = ${users.id}
                           AND i.created_at >= NOW() - INTERVAL '7 days'
-                    )
-                `);
+                    )`
+                );
 
                 let sent = 0;
-                for (const user of users) {
+                for (const user of recentUsers) {
                     try {
-                        const { rows: [stats] } = await query(`
+                        const statsResult = await db.execute(sql`
                             SELECT
                                 COALESCE(SUM(amount) FILTER (WHERE status = 'paid'
                                     AND paid_at >= NOW() - INTERVAL '7 days'), 0)::float       AS earned,
@@ -91,19 +101,21 @@ const worker = new Worker(
                                 (
                                     SELECT c.name FROM clients c
                                     JOIN invoices i2 ON i2.client_id = c.id
-                                    WHERE i2.user_id = u.id AND i2.status = 'paid'
+                                    WHERE i2.user_id = ${user.id} AND i2.status = 'paid'
                                       AND i2.paid_at >= NOW() - INTERVAL '7 days'
                                     GROUP BY c.name
                                     ORDER BY SUM(i2.amount) DESC
                                     LIMIT 1
                                 ) AS top_client
                             FROM invoices
-                            WHERE user_id = $1
-                        `, [user.id]);
+                            WHERE user_id = ${user.id}
+                        `);
+
+                        const stats = statsResult.rows[0] as any;
 
                         await sendWeeklySummary({
                             to: user.email,
-                            name: user.full_name,
+                            name: user.fullName,
                             stats: {
                                 earned: stats.earned,
                                 pending: stats.pending,
@@ -117,21 +129,28 @@ const worker = new Worker(
                     }
                 }
 
-                logger.info(`[scheduler] weekly summaries sent to ${sent}/${users.length} user(s)`);
+                logger.info(`[scheduler] weekly summaries sent to ${sent}/${recentUsers.length} user(s)`);
                 break;
             }
 
             case 'cleanup-tokens': {
-                // Clean both tables
-                const { rowCount: resetCount } = await query(`
-                    DELETE FROM password_reset_tokens
-                    WHERE expires_at < NOW() OR used_at IS NOT NULL
-                `);
-                const { rowCount: refreshCount } = await query(`
-                    DELETE FROM refresh_tokens
-                    WHERE revoked = true OR expires_at < NOW()
-                `);
-                logger.info(`[scheduler] cleaned ${resetCount} reset token(s), ${refreshCount} refresh token(s)`);
+                await db.delete(passwordResetTokens)
+                    .where(
+                        or(
+                            lt(passwordResetTokens.expiresAt, new Date()),
+                            sql`used_at IS NOT NULL`
+                        )
+                    );
+                
+                await db.delete(refreshTokens)
+                    .where(
+                        or(
+                            eq(refreshTokens.revoked, true),
+                            lt(refreshTokens.expiresAt, new Date())
+                        )
+                    );
+                
+                logger.info(`[scheduler] cleaned up tokens`);
                 break;
             }
 
@@ -139,7 +158,7 @@ const worker = new Worker(
                 logger.warn(`[scheduler] unknown job: ${job.name}`);
         }
     },
-    { connection: makeRedisConnection() } // separate connection from the Queue
+    { connection: makeRedisConnection() }
 );
 
 worker.on('failed', (job, err) => {

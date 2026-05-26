@@ -19,7 +19,7 @@ const empty = {
   description: '',
   amount:      '',
   category:    'Other',
-  date:        new Date().toISOString().slice(0, 10),
+  expenseDate: new Date().toISOString().slice(0, 10),
   projectId:   '',
   notes:       '',
 }
@@ -29,8 +29,8 @@ export default function ExpenseForm({ initial = null, onSubmit, loading }: Expen
     description: initial.description  ?? '',
     amount:      String(initial.amount ?? ''),
     category:    initial.category     ?? 'Other',
-    date:        initial.expense_date ? initial.expense_date.slice(0, 10) : new Date().toISOString().slice(0, 10),
-    projectId:   (initial as any).project_id   ?? '',
+    expenseDate: initial.expenseDate  ? initial.expenseDate.slice(0, 10) : new Date().toISOString().slice(0, 10),
+    projectId:   initial.projectId    ?? '',
     notes:       initial.notes        ?? '',
   } : empty)
 
@@ -50,7 +50,7 @@ export default function ExpenseForm({ initial = null, onSubmit, loading }: Expen
     const e: Record<string, string> = {}
     if (!form.description.trim())  e.description = 'Description is required'
     if (!form.amount || isNaN(parseFloat(form.amount))) e.amount = 'Valid amount required'
-    if (!form.date)                e.date = 'Date is required'
+    if (!form.expenseDate)         e.expenseDate = 'Date is required'
     return e
   }
 
@@ -59,12 +59,13 @@ export default function ExpenseForm({ initial = null, onSubmit, loading }: Expen
     const errs = validate()
     if (Object.keys(errs).length) { setErrors(errs); return }
     onSubmit({
-      description:  form.description,
-      amount:       parseFloat(form.amount),
-      category:     form.category,
-      expense_date: form.date || undefined,
-      notes:        form.notes || undefined,
-      currency:     'USD',
+      description: form.description,
+      amount:      parseFloat(form.amount),
+      category:    form.category,
+      expenseDate: form.expenseDate,
+      projectId:   form.projectId || null,
+      notes:       form.notes     || null,
+      currency:    'USD',
     })
   }
 
@@ -88,8 +89,8 @@ export default function ExpenseForm({ initial = null, onSubmit, loading }: Expen
         </div>
         <div>
           <label>Date</label>
-          <input type="date" value={form.date} onChange={set('date')} />
-          {err('date')}
+          <input type="date" value={form.expenseDate} onChange={set('expenseDate')} />
+          {err('expenseDate')}
         </div>
       </div>
 

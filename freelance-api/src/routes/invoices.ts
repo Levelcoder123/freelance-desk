@@ -40,8 +40,8 @@ invoicesRouter.get('/:id', async (req: AuthenticatedRequest, res: Response, next
 invoicesRouter.patch('/:id', validate(invoiceValidation.updateSchema), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.userId) return res.status(401).json({ error: 'Unauthorized' });
-    const allowed = ['client_id', 'project_id', 'invoice_number', 'status', 'amount',
-      'currency', 'tax_rate', 'issue_date', 'due_date', 'notes', 'line_items'];
+    const allowed = ['clientId', 'projectId', 'invoiceNumber', 'status', 'amount',
+      'currency', 'taxRate', 'issueDate', 'dueDate', 'notes', 'lineItems'];
     const updates = Object.fromEntries(Object.entries(req.body).filter(([k]) => allowed.includes(k)));
     if (!Object.keys(updates).length) return res.status(400).json({ error: 'Nothing to update' });
 

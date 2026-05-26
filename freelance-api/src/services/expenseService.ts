@@ -1,5 +1,15 @@
-import { query } from '../config/database.js';
+import { db } from '../config/database.js';
+import { expenses, projects } from '../db/schema.js';
+import { eq, and, sql, desc, count, ilike } from 'drizzle-orm';
 import { Expense } from '../types/index.js';
+
+function mapExpense(row: any): Expense {
+  if (!row) return row;
+  return {
+    ...row,
+    amount: row.amount ? parseFloat(row.amount) : 0,
+  } as Expense;
+}
 
 interface GetExpensesFilters {
   category?: string;
@@ -17,76 +27,110 @@ interface ExpenseSummary {
 
 export async function getExpenses(userId: string, { category, year, search, page = 1, limit = 50 }: GetExpensesFilters) {
   const offset = (page - 1) * limit;
-  const params: any[] = [userId];
-  let where = 'WHERE user_id=$1';
 
-  if (category) { params.push(category);      where += ` AND category=$${params.length}`; }
-  if (year)     { params.push(year);           where += ` AND EXTRACT(YEAR FROM expense_date)=$${params.length}`; }
-  if (search)   { params.push(`%${search}%`); where += ` AND description ILIKE $${params.length}`; }
+  let where = eq(expenses.userId, userId);
 
-  const cntParams = [...params];
-  const limitParamIndex = params.length + 1;
-  const offsetParamIndex = params.length + 2;
-  params.push(limit, offset);
+  if (category) { where = and(where, eq(expenses.category, category)) as any; }
+  if (year)     { where = and(where, sql`EXTRACT(YEAR FROM ${expenses.expenseDate}) = ${year}`) as any; }
+  if (search)   { where = and(where, ilike(expenses.description, `%${search}%`)) as any; }
 
-  const { rows } = await query(
-    `SELECT * FROM expenses ${where}
-     ORDER BY expense_date DESC
-     LIMIT $${limitParamIndex} OFFSET $${offsetParamIndex}`,
-    params
-  );
+  const result = await db.select({
+      id: expenses.id,
+      userId: expenses.userId,
+      projectId: expenses.projectId,
+      description: expenses.description,
+      amount: expenses.amount,
+      currency: expenses.currency,
+      category: expenses.category,
+      expenseDate: expenses.expenseDate,
+      notes: expenses.notes,
+      createdAt: expenses.createdAt,
+      updatedAt: expenses.updatedAt,
+      projectName: projects.name
+  })
+  .from(expenses)
+  .leftJoin(projects, eq(projects.id, expenses.projectId))
+  .where(where)
+  .orderBy(desc(expenses.expenseDate))
+  .limit(limit)
+  .offset(offset);
 
-  const { rows: cr } = await query(
-    `SELECT COUNT(*)::int FROM expenses ${where}`,
-    cntParams
-  );
+  const [totalResult] = await db.select({ count: count() })
+    .from(expenses)
+    .where(where);
 
-  const { rows: summaryRows } = await query(
-    `SELECT category, SUM(amount)::float AS total, COUNT(*)::int AS count
-     FROM expenses WHERE user_id=$1
-     GROUP BY category ORDER BY total DESC`,
-    [userId]
-  );
-
-  const summary = summaryRows as ExpenseSummary[];
-  const total = summary.reduce((s, r) => s + r.total, 0);
+  const summary = await getExpenseSummary(userId);
 
   return {
-    data: rows as Expense[],
-    meta: { total: cr[0].count, page: +page, limit: +limit },
+    data: result.map(mapExpense),
+    meta: { total: totalResult.count, page: +page, limit: +limit },
     summary,
-    total,
+    total: summary.reduce((s, r) => s + r.total, 0),
   };
 }
 
-export async function createExpense(userId: string, data: Partial<Expense>): Promise<Expense> {
-  const { description, amount, currency, category, expense_date, notes } = data;
-  const { rows } = await query(
-    `INSERT INTO expenses(user_id,description,amount,currency,category,expense_date,notes)
-     VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-    [userId, description, amount, currency, category, expense_date || new Date(), notes]
-  );
-  return rows[0];
+export async function getExpenseSummary(userId: string): Promise<ExpenseSummary[]> {
+  const result = await db.select({
+      category: expenses.category,
+      total: sql<number>`SUM(${expenses.amount})::float`,
+      count: sql<number>`COUNT(*)::int`
+  })
+  .from(expenses)
+  .where(eq(expenses.userId, userId))
+  .groupBy(expenses.category)
+  .orderBy(desc(sql`SUM(${expenses.amount})`));
+  
+  return result as ExpenseSummary[];
 }
 
-export async function updateExpense(userId: string, id: string, updates: Partial<Expense>): Promise<Expense | null> {
-  const keys = Object.keys(updates);
-  if (keys.length === 0) {
-      const { rows } = await query('SELECT * FROM expenses WHERE id=$1 AND user_id=$2', [id, userId]);
-      return rows[0] || null;
+export async function createExpense(userId: string, data: any) {
+  const drizzleData: any = {
+      ...data,
+      userId,
+      expenseDate: data.expenseDate || data.expense_date || new Date().toISOString().slice(0, 10),
+      projectId: data.projectId || data.project_id || null,
+      amount: String(data.amount)
+  };
+  
+  // Remove fields that don't belong in the DB
+  delete drizzleData.expense_date;
+  delete drizzleData.project_id;
+
+  const result = await db.insert(expenses)
+    .values(drizzleData)
+    .returning();
+  return mapExpense(result[0]);
+}
+
+export async function updateExpense(userId: string, id: string, updates: any) {
+  const drizzleUpdates: any = { ...updates };
+  
+  if (updates.expenseDate !== undefined) drizzleUpdates.expenseDate = updates.expenseDate;
+  if (updates.expense_date !== undefined) {
+      drizzleUpdates.expenseDate = updates.expense_date;
+      delete drizzleUpdates.expense_date;
+  }
+  
+  if (updates.projectId !== undefined) drizzleUpdates.projectId = updates.projectId;
+  if (updates.project_id !== undefined) {
+      drizzleUpdates.projectId = updates.project_id;
+      delete drizzleUpdates.project_id;
   }
 
-  const fields = keys.map((k, i) => `${k}=$${i + 3}`).join(', ');
-  const { rows } = await query(
-    `UPDATE expenses SET ${fields} WHERE id=$1 AND user_id=$2 RETURNING *`,
-    [id, userId, ...Object.values(updates)]
-  );
-  return rows[0] || null;
+  if (updates.amount !== undefined) drizzleUpdates.amount = String(updates.amount);
+
+  const result = await db.update(expenses)
+    .set({ ...drizzleUpdates, updatedAt: new Date() })
+    .where(and(eq(expenses.id, id), eq(expenses.userId, userId)))
+    .returning();
+  
+  return mapExpense(result[0]) || null;
 }
 
 export async function deleteExpense(userId: string, id: string): Promise<boolean> {
-  const { rowCount } = await query(
-    'DELETE FROM expenses WHERE id=$1 AND user_id=$2', [id, userId]
-  );
-  return (rowCount ?? 0) > 0;
+  const result = await db.delete(expenses)
+    .where(and(eq(expenses.id, id), eq(expenses.userId, userId)))
+    .returning({ id: expenses.id });
+  
+  return result.length > 0;
 }

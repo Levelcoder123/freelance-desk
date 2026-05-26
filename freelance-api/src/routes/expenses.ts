@@ -8,7 +8,16 @@ import { Expense } from '../types/index.js';
 export const expensesRouter = Router();
 expensesRouter.use(authenticate as any);
 
-// GET /expenses
+// ── GET /expenses/summary (must be before /:id)
+expensesRouter.get('/summary', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userId) return res.status(401).json({ error: 'Unauthorized' });
+    const summary = await expenseService.getExpenseSummary(req.userId);
+    res.json({ summary });
+  } catch (err) { next(err); }
+});
+
+// ── GET /expenses
 expensesRouter.get('/', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.userId) return res.status(401).json({ error: 'Unauthorized' });
@@ -17,7 +26,7 @@ expensesRouter.get('/', async (req: AuthenticatedRequest, res: Response, next: N
   } catch (err) { next(err); }
 });
 
-// POST /expenses
+// ── POST /expenses
 expensesRouter.post('/', validate(expenseValidation.expenseSchema), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.userId) return res.status(401).json({ error: 'Unauthorized' });
@@ -26,11 +35,11 @@ expensesRouter.post('/', validate(expenseValidation.expenseSchema), async (req: 
   } catch (err) { next(err); }
 });
 
-// PATCH /expenses/:id
+// ── PATCH /expenses/:id
 expensesRouter.patch('/:id', validate(expenseValidation.updateSchema), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.userId) return res.status(401).json({ error: 'Unauthorized' });
-    const allowed = ['description','amount','currency','category','expense_date','notes'];
+    const allowed = ['description', 'amount', 'currency', 'category', 'expenseDate', 'projectId', 'notes'];
     const updates = Object.fromEntries(Object.entries(req.body).filter(([k]) => allowed.includes(k)));
     if (!Object.keys(updates).length) return res.status(400).json({ error: 'Nothing to update' });
 
@@ -40,7 +49,7 @@ expensesRouter.patch('/:id', validate(expenseValidation.updateSchema), async (re
   } catch (err) { next(err); }
 });
 
-// DELETE /expenses/:id
+// ── DELETE /expenses/:id
 expensesRouter.delete('/:id', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.userId) return res.status(401).json({ error: 'Unauthorized' });

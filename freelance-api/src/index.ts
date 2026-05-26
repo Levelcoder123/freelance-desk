@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Request, Response } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import morgan from 'morgan';
@@ -16,7 +16,9 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { rateLimiter } from './middleware/rateLimiter.js';
 
 import { constructWebhookEvent } from './services/stripeService.js';
-import { query } from './config/database.js';
+import { db } from './config/database.js';
+import { invoices } from './db/schema.js';
+import { eq, and, ne, sql } from 'drizzle-orm';
 
 import { registerScheduledJobs } from './workers/schedulerWorker.js';
 import { confirmationQueue } from './workers/invoiceWorker.js';
@@ -43,17 +45,21 @@ app.post(
             event.type === 'checkout.session.completed') {
             const meta = (event.data.object as any).metadata || {};
             if (meta.invoice_id) {
-                const result = await query(
-                    `UPDATE invoices 
-                    SET status='paid',
-                    paid_at=NOW(),
-                    stripe_payment_link=NULL 
-                    WHERE id=$1 AND status != 'paid'
-                    RETURNING id`,
-                    [meta.invoice_id]
-                );
+                const result = await db.update(invoices)
+                    .set({
+                        status: 'paid',
+                        paidAt: new Date(),
+                        stripePaymentLink: null
+                    })
+                    .where(
+                        and(
+                            eq(invoices.id, meta.invoice_id),
+                            ne(invoices.status, 'paid')
+                        )
+                    )
+                    .returning({ id: invoices.id });
 
-                if (result.rowCount && result.rowCount > 0) {
+                if (result.length > 0) {
                     logger.info(`Invoice ${meta.invoice_id} marked paid via Stripe webhook`);
 
                     await confirmationQueue.add('send-confirmation', {

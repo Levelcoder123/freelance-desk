@@ -2,7 +2,7 @@
 import Stripe from 'stripe';
 import { Invoice } from '../types/index.js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+const stripe = new Stripe((process.env.STRIPE_SECRET_KEY as string) || 'sk_test_123', {
     apiVersion: '2023-10-16' as any,
 });
 
@@ -15,9 +15,9 @@ export async function createPaymentLink(invoice: Invoice): Promise<string> {
     // Create a one-time Price object on the fly
     const price = await stripe.prices.create({
         currency: (invoice.currency || 'USD').toLowerCase(),
-        unit_amount: Math.round(invoice.total_amount * 100), // cents
+        unit_amount: Math.round(parseFloat(invoice.totalAmount) * 100), // cents
         product_data: {
-            name: `Invoice ${invoice.invoice_number}`,
+            name: `Invoice ${invoice.invoiceNumber}`,
             metadata: { invoice_id: invoice.id },
         },
     });
@@ -26,8 +26,8 @@ export async function createPaymentLink(invoice: Invoice): Promise<string> {
         line_items: [{ price: price.id, quantity: 1 }],
         metadata: {
             invoice_id: invoice.id,
-            invoice_number: invoice.invoice_number,
-            user_id: invoice.user_id,
+            invoice_number: invoice.invoiceNumber,
+            user_id: invoice.userId,
         },
         after_completion: {
             type: 'redirect',
@@ -46,6 +46,6 @@ export function constructWebhookEvent(rawBody: Buffer, sig: string): Stripe.Even
     return stripe.webhooks.constructEvent(
         rawBody,
         sig,
-        process.env.STRIPE_WEBHOOK_SECRET as string
+        (process.env.STRIPE_WEBHOOK_SECRET as string) || 'whsec_123'
     );
 }

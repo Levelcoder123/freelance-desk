@@ -40,7 +40,7 @@ clientsRouter.get('/:id', async (req: AuthenticatedRequest, res: Response, next:
 clientsRouter.patch('/:id', validate(clientValidation.updateSchema), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.userId) return res.status(401).json({ error: 'Unauthorized' });
-    const allowed = ['name','company','email','phone','address','tags','hourly_rate','status','notes'];
+    const allowed = ['name', 'company', 'email', 'phone', 'address', 'tags', 'hourlyRate', 'status', 'notes'];
     const updates = Object.fromEntries(Object.entries(req.body).filter(([k]) => allowed.includes(k)));
     if (!Object.keys(updates).length) return res.status(400).json({ error: 'Nothing to update' });
 

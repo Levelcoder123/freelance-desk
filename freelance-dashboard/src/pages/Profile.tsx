@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useProfile, useUpdateProfile, useChangePassword } from '../hooks/useProfile'
 import { formatCurrency } from '../utils/currency'
 import { PersonalInfoForm, FinancialSettingsForm, ChangePasswordForm } from '../components/forms/ProfileForms'
+import { User } from '../types'
 
 interface SectionProps {
   title: string;
@@ -50,32 +51,39 @@ export default function Profile() {
   const updateProfile  = useUpdateProfile()
   const changePassword = useChangePassword()
 
-  const [info,  setInfo]  = useState({ full_name: '', email: '', timezone: 'UTC' })
-  const [rates, setRates] = useState({ monthly_goal: '', tax_rate: '', se_tax_rate: '' })
+  // ── Form States ──────────────────────────────────────────────────
+  
+  const [info,  setInfo]  = useState({ fullName: '', email: '', timezone: 'UTC' })
+  const [rates, setRates] = useState({ monthlyGoal: '', taxRate: '', seTaxRate: '' })
   const [pw,    setPw]    = useState({ current_password: '', new_password: '', confirm: '' })
 
   const [infoMsg,  setInfoMsg]  = useState<{ ok: boolean; text: string } | null>(null)
   const [ratesMsg, setRatesMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [pwMsg,    setPwMsg]    = useState<{ ok: boolean; text: string } | null>(null)
 
+  // Sync server data to local form state once loaded
   useEffect(() => {
     if (!profile) return
     setInfo({
-      full_name: profile.full_name ?? '',
-      email:     profile.email     ?? '',
-      timezone:  profile.timezone  ?? 'UTC',
+      fullName: profile.fullName ?? '',
+      email:     profile.email    ?? '',
+      timezone:  profile.timezone ?? 'UTC',
     })
     setRates({
-      monthly_goal: String(profile.monthly_goal ?? ''),
-      tax_rate:     String(profile.tax_rate     ?? ''),
-      se_tax_rate:  String(profile.se_tax_rate  ?? ''),
+      monthlyGoal: String(profile.monthlyGoal ?? ''),
+      taxRate:     String(profile.taxRate     ?? ''),
+      seTaxRate:  String(profile.seTaxRate  ?? ''),
     })
   }, [profile])
 
   async function handleInfoSave(e: React.FormEvent) {
     e.preventDefault(); setInfoMsg(null)
     try {
-      await updateProfile.mutateAsync(info)
+      await updateProfile.mutateAsync({
+          fullName: info.fullName,
+          email:     info.email,
+          timezone:  info.timezone
+      })
       setInfoMsg({ ok: true, text: 'Saved successfully' })
     } catch (err: any) {
       setInfoMsg({ ok: false, text: err.response?.data?.error ?? 'Failed to save' })
@@ -86,9 +94,9 @@ export default function Profile() {
     e.preventDefault(); setRatesMsg(null)
     try {
       await updateProfile.mutateAsync({
-        monthly_goal: parseFloat(rates.monthly_goal),
-        tax_rate:     parseFloat(rates.tax_rate),
-        se_tax_rate:  parseFloat(rates.se_tax_rate),
+        monthlyGoal: parseFloat(rates.monthlyGoal) || 0,
+        taxRate:     parseFloat(rates.taxRate) || 0,
+        seTaxRate:  parseFloat(rates.seTaxRate) || 0,
       })
       setRatesMsg({ ok: true, text: 'Saved successfully' })
     } catch (err: any) {
@@ -113,10 +121,12 @@ export default function Profile() {
     }
   }
 
-  const goal    = parseFloat(rates.monthly_goal) || 0
-  const taxRate = parseFloat(rates.tax_rate)     || 0
-  const seRate  = parseFloat(rates.se_tax_rate)  || 0
-  const incomeTax = goal * (taxRate / 100)
+  // ── Derived State (Computed during render) ──────────────────────
+
+  const goal    = parseFloat(rates.monthlyGoal) || 0
+  const taxRateVal = parseFloat(rates.taxRate)     || 0
+  const seRate  = parseFloat(rates.seTaxRate)  || 0
+  const incomeTax = goal * (taxRateVal / 100)
   const seTax     = goal * (seRate  / 100)
   const totalTax  = incomeTax + seTax
   const takeHome  = goal - totalTax
@@ -124,7 +134,7 @@ export default function Profile() {
   if (isLoading) return <p style={{ color: 'var(--text-secondary)' }}>Loading…</p>
 
   return (
-    <div>
+    <div key={profile?.id}> {/* Key used to reset whole page state if profile ID changes */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <h2 style={{ margin: 0 }}>Profile</h2>
         <span style={{
@@ -184,10 +194,10 @@ export default function Profile() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 18, fontWeight: 700, flexShrink: 0,
               }}>
-                {info.full_name?.charAt(0)?.toUpperCase() ?? '?'}
+                {info.fullName?.charAt(0)?.toUpperCase() ?? '?'}
               </div>
               <div>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>{info.full_name || '—'}</div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{info.fullName || '—'}</div>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{info.email}</div>
               </div>
             </div>
@@ -196,8 +206,8 @@ export default function Profile() {
             <StatRow label="Timezone" value={info.timezone} />
             <StatRow
               label="Member since"
-              value={profile?.created_at
-                ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+              value={profile?.createdAt
+                ? new Date(profile.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
                 : '—'}
             />
           </div>

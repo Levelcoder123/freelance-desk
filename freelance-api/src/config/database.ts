@@ -1,6 +1,8 @@
 import pg from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import dotenv from 'dotenv';
 import logger from '../utils/logger.js';
+import * as schema from '../db/schema.js';
 
 dotenv.config();
 
@@ -20,6 +22,10 @@ pool.on('error', (err: Error) => {
   process.exit(-1);
 });
 
+// ── Drizzle Client ───────────────────────────────────────────────────────────
+export const db = drizzle(pool, { schema });
+
+// ── Legacy Raw Helper ───────────────────────────────────────────────────────
 export const query = (text: string, params?: any[]) => pool.query(text, params);
 
 export const getClient = () => pool.connect();

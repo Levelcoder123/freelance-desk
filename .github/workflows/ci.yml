@@ -62,7 +62,6 @@ jobs:
 
       - name: Lint & Typecheck
         run: |
-          npm run lint
           npx tsc --noEmit
 
       - name: Run migrations

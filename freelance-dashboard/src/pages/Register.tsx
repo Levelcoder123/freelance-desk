@@ -18,7 +18,7 @@ function getErrorMessage(error: any) {
 export default function Register() {
   const navigate = useNavigate()
   const { setTokens, setUser } = useAuthStore()
-  const [form, setForm] = useState({ full_name: '', email: '', password: '' })
+  const [form, setForm] = useState({ fullName: '', email: '', password: '' })
 
   const mutation = useMutation<NormalizedAuth, Error, any>({
     mutationFn: register,
@@ -78,14 +78,14 @@ export default function Register() {
 
             <form onSubmit={handleSubmit}>
               <div className="auth-field">
-                <label htmlFor="full_name">Full name</label>
+                <label htmlFor="fullName">Full name</label>
                 <input
-                  id="full_name"
+                  id="fullName"
                   type="text"
                   placeholder="Jane Cooper"
                   autoComplete="name"
-                  value={form.full_name}
-                  onChange={set('full_name')}
+                  value={form.fullName}
+                  onChange={set('fullName')}
                   required
                   minLength={2}
                 />
@@ -120,7 +120,7 @@ export default function Register() {
               <button
                 className="auth-btn"
                 type="submit"
-                disabled={mutation.isPending || !form.full_name || !form.email || form.password.length < 8}
+                disabled={mutation.isPending || !form.fullName || !form.email || form.password.length < 8}
               >
                 {mutation.isPending ? 'Creating account...' : 'Create account'}
               </button>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLogin } from '../hooks/useAuth'
 import './Login.css'
@@ -16,16 +16,6 @@ export default function Login() {
   const { mutate: login, isPending, error } = useLogin()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-
-  useEffect(() => {
-    if (document.getElementById('freelance-fonts')) return
-
-    const link = document.createElement('link')
-    link.id = 'freelance-fonts'
-    link.rel = 'stylesheet'
-    link.href = 'https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap'
-    document.head.appendChild(link)
-  }, [])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

@@ -12,7 +12,7 @@ import Invoices  from './pages/Invoices'
 import Profile from './pages/Profile'
 import Projects  from './pages/Projects'
 import Expenses  from './pages/Expenses'
-import React, { useRef } from 'react'
+import React, { useState } from 'react'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore(s => s.token)
@@ -20,11 +20,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const qc = useRef(new QueryClient({
+  const [qc] = useState(() => new QueryClient({
     defaultOptions: {
       queries: { staleTime: 5_000, retry: 1 },
     },
-  })).current
+  }))
 
   return (
     <QueryClientProvider client={qc}>

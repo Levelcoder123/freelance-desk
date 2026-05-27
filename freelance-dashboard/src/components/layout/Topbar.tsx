@@ -32,6 +32,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
     : user?.email?.[0]?.toUpperCase() ?? 'U'
 
   useEffect(() => {
+    if (!open) return
     function handleClick(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setOpen(false)
@@ -39,7 +40,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
+  }, [open])
 
   return (
     <header className="topbar">

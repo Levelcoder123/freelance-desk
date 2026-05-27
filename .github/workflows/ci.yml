@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main, dev]
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  # ── API (Backend) CI ────────────────────────────────────────────────────────
+  api-ci:
+    name: API CI
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./freelance-api
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER:     postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB:       freelance_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      NODE_ENV:            test
+      DATABASE_URL:        postgresql://postgres:postgres@localhost:5432/freelance_test
+      REDIS_URL:           redis://localhost:6379
+      JWT_SECRET:          ci-test-jwt-secret-32-chars-min!!
+      JWT_REFRESH_SECRET:  ci-test-refresh-secret-32-chars!!
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: freelance-api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint & Typecheck
+        run: |
+          npm run lint
+          npx tsc --noEmit
+
+      - name: Run migrations
+        run: npx tsx src/db/migrate.ts
+
+      - name: Run tests
+        run: npm test -- --coverage
+
+  # ── Dashboard (Frontend) CI ──────────────────────────────────────────────────
+  dashboard-ci:
+    name: Dashboard CI
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./freelance-dashboard
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: freelance-dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint & Typecheck
+        run: |
+          # npm run lint (if configured)
+          npx tsc --noEmit
+
+      - name: Run Vitest tests
+        run: npm test

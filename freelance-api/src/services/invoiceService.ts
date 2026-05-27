@@ -89,10 +89,12 @@ export async function getInvoices(userId: string, { status, clientId, search, pa
 }
 
 export async function createInvoice(userId: string, data: any) {
-  const result = await db.insert(invoices)
-    .values({ ...data, userId })
-    .returning();
-  return mapInvoice(result[0]);
+  return await db.transaction(async (tx) => {
+    const result = await tx.insert(invoices)
+      .values({ ...data, userId })
+      .returning();
+    return mapInvoice(result[0]);
+  });
 }
 
 export async function getInvoiceById(userId: string, id: string) {
@@ -133,17 +135,19 @@ export async function getInvoiceById(userId: string, id: string) {
 }
 
 export async function updateInvoice(userId: string, id: string, updates: any) {
-  const { id: _, userId: __, createdAt: ___, ...cleanUpdates } = updates;
-  
-  if (cleanUpdates.status === 'paid') cleanUpdates.paidAt = new Date();
-  if (cleanUpdates.status && cleanUpdates.status !== 'paid') cleanUpdates.paidAt = null;
+  return await db.transaction(async (tx) => {
+    const { id: _, userId: __, createdAt: ___, ...cleanUpdates } = updates;
+    
+    if (cleanUpdates.status === 'paid') cleanUpdates.paidAt = new Date();
+    if (cleanUpdates.status && cleanUpdates.status !== 'paid') cleanUpdates.paidAt = null;
 
-  const result = await db.update(invoices)
-    .set({ ...cleanUpdates, updatedAt: new Date() })
-    .where(and(eq(invoices.id, id), eq(invoices.userId, userId)))
-    .returning();
-  
-  return mapInvoice(result[0]) || null;
+    const result = await tx.update(invoices)
+      .set({ ...cleanUpdates, updatedAt: new Date() })
+      .where(and(eq(invoices.id, id), eq(invoices.userId, userId)))
+      .returning();
+    
+    return mapInvoice(result[0]) || null;
+  });
 }
 
 export async function deleteInvoice(userId: string, id: string): Promise<boolean> {

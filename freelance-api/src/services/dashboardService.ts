@@ -1,6 +1,6 @@
 import { db } from '../config/database.js';
-import { invoices, clients, projects, users, expenses } from '../db/schema.js';
-import { eq, and, sql, desc, count, between, inArray, lt } from 'drizzle-orm';
+import { invoices, clients, projects, users, expenses, dashboardSummaryView, monthlyRevenueView } from '../db/schema.js';
+import { eq, and, sql, desc, count, between, lt, inArray } from 'drizzle-orm';
 
 export interface DashboardData {
   summary: {
@@ -15,8 +15,8 @@ export interface DashboardData {
     activeClients: number;
   };
   monthlyRevenue: { label: string; revenue: number; invoiceCount: number }[];
-  deadlines: { id: string; name: string; deadline: Date | string; priority: string; progress: number; clientName: string }[];
-  recentInvoices: { id: string; invoiceNumber: string; amount: number; status: string; dueDate: Date | string; clientName: string }[];
+  deadlines: { id: string; name: string; deadline: string | null; priority: string; progress: number; clientName: string | null }[];
+  recentInvoices: { id: string; invoiceNumber: string; amount: number; status: string; dueDate: string | null; clientName: string | null }[];
   tax: {
     gross: number;
     expenses: number;
@@ -33,7 +33,7 @@ export interface DashboardData {
 }
 
 /**
- * Aggregates all data required for the user's dashboard.
+ * Aggregates all data required for the user's dashboard with optimized Drizzle queries.
  */
 export async function getDashboardData(userId: string): Promise<DashboardData> {
   const [
@@ -56,28 +56,32 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
     fetchClientCount(userId)
   ]);
 
-  const gross = parseFloat(summaryBase?.total_earned || '0');
-  const expenses_val = parseFloat(summaryBase?.total_expenses || '0');
+  const gross = parseFloat(summaryBase?.totalEarned || '0');
+  const expenses_val = parseFloat(summaryBase?.totalExpenses || '0');
   const taxable = Math.max(0, gross - expenses_val);
-  const taxRate = parseFloat(userSettings.taxRate || '0');
-  const seTaxRate = parseFloat(userSettings.seTaxRate || '0');
+  const taxRate = parseFloat(userSettings?.taxRate || '0');
+  const seTaxRate = parseFloat(userSettings?.seTaxRate || '0');
   const taxOwed = taxable * ((taxRate + seTaxRate) / 100);
 
   return {
     summary: {
       totalEarned: gross,
       totalExpenses: expenses_val,
-      totalPending: parseFloat(summaryBase?.total_pending || '0'),
-      totalOverdue: parseFloat(summaryBase?.total_overdue || '0'),
+      totalPending: parseFloat(summaryBase?.totalPending || '0'),
+      totalOverdue: parseFloat(summaryBase?.totalOverdue || '0'),
       overdueInvoices: invoiceStats.overdueCount,
       openInvoices: invoiceStats.openCount,
-      totalOutstanding: parseFloat(summaryBase?.total_pending || '0') + parseFloat(summaryBase?.total_overdue || '0'),
-      expensesByCategory: expensesByCategory as any,
+      totalOutstanding: parseFloat(summaryBase?.totalPending || '0') + parseFloat(summaryBase?.totalOverdue || '0'),
+      expensesByCategory: expensesByCategory,
       activeClients: clientCount
     },
-    monthlyRevenue,
-    deadlines: deadlines as any,
-    recentInvoices: recentInvoices as any,
+    monthlyRevenue: monthlyRevenue.map(r => ({
+        label: r.label,
+        revenue: parseFloat(r.revenue || '0'),
+        invoiceCount: r.invoiceCount || 0
+    })),
+    deadlines,
+    recentInvoices,
     tax: {
       gross,
       expenses: expenses_val,
@@ -87,9 +91,9 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
       seTaxRate,
     },
     goal: {
-      target: parseFloat(userSettings.monthlyGoal || '0'),
+      target: parseFloat(userSettings?.monthlyGoal || '0'),
       earned: gross,
-      percent: userSettings.monthlyGoal && parseFloat(userSettings.monthlyGoal) > 0 
+      percent: userSettings?.monthlyGoal && parseFloat(userSettings.monthlyGoal) > 0 
         ? Math.min(100, Math.round((gross / parseFloat(userSettings.monthlyGoal)) * 100)) 
         : 0,
     },
@@ -99,18 +103,29 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
 // ── Private Helper Functions ────────────────────────────────────────
 
 async function fetchSummaryBase(userId: string) {
-  const result = await db.execute(sql`SELECT * FROM v_dashboard_summary WHERE user_id = ${userId}`);
-  return result.rows[0] as any || {};
+  const result = await db.select()
+    .from(dashboardSummaryView)
+    .where(eq(dashboardSummaryView.userId, userId))
+    .limit(1);
+  return result[0] || null;
 }
 
 async function fetchMonthlyRevenue(userId: string) {
-  const result = await db.execute(sql`
-     SELECT TO_CHAR(month, 'Mon') AS label, revenue::float, invoice_count::int AS "invoiceCount"
-     FROM v_monthly_revenue
-     WHERE user_id = ${userId} AND month >= DATE_TRUNC('month', NOW() - INTERVAL '5 months')
-     ORDER BY month ASC
-  `);
-  return result.rows as any[];
+  return db.select({
+      label: sql<string>`TO_CHAR(${monthlyRevenueView.month}, 'Mon')`,
+      revenue: monthlyRevenueView.revenue,
+      invoiceCount: monthlyRevenueView.invoiceCount,
+      // We need the raw month to order by, but we don't return it
+      month: monthlyRevenueView.month
+  })
+  .from(monthlyRevenueView)
+  .where(
+      and(
+          eq(monthlyRevenueView.userId, userId),
+          sql`${monthlyRevenueView.month} >= DATE_TRUNC('month', NOW() - INTERVAL '5 months')`
+      )
+  )
+  .orderBy(monthlyRevenueView.month);
 }
 
 async function fetchUpcomingDeadlines(userId: string) {
@@ -188,7 +203,7 @@ async function fetchUserSettings(userId: string) {
   .where(eq(users.id, userId))
   .limit(1);
   
-  return result[0] || {};
+  return result[0] || null;
 }
 
 async function fetchExpensesByCategory(userId: string) {

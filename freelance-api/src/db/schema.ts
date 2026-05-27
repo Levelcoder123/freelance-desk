@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, numeric, text, timestamp, boolean, integer, date, jsonb, index, unique, check } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, numeric, text, timestamp, boolean, integer, date, jsonb, index, unique, check, pgView } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
 export const users = pgTable('users', {
@@ -91,6 +91,7 @@ export const invoices = pgTable('invoices', {
   userIndex: index('idx_invoices_user').on(table.userId),
   clientIndex: index('idx_invoices_client').on(table.clientId),
   statusIndex: index('idx_invoices_status').on(table.userId, table.status),
+  dueIndex: index('idx_invoices_due').on(table.dueDate),
   amountCheck: check('amount_check', sql`amount >= 0`),
 }));
 
@@ -111,6 +112,7 @@ export const expenses = pgTable('expenses', {
   userIndex: index('idx_expenses_user').on(table.userId),
   categoryIndex: index('idx_expenses_category').on(table.userId, table.category),
   dateIndex: index('idx_expenses_date').on(table.userId, table.expenseDate),
+  projectIndex: index('idx_expenses_project').on(table.projectId),
   amountCheck: check('amount_check', sql`amount >= 0`),
 }));
 
@@ -125,3 +127,21 @@ export const passwordResetTokens = pgTable('password_reset_tokens', {
   userIndex: index('idx_password_reset_tokens_user').on(table.userId),
   validTokenIndex: index('idx_password_reset_tokens_valid').on(table.token, table.expiresAt).where(sql`used_at IS NULL`),
 }));
+
+// Views (Mapped to existing views)
+export const dashboardSummaryView = pgView('v_dashboard_summary', {
+  userId: uuid('user_id'),
+  activeClients: integer('active_clients'),
+  totalInvoices: integer('total_invoices'),
+  totalEarned: numeric('total_earned'),
+  totalPending: numeric('total_pending'),
+  totalOverdue: numeric('total_overdue'),
+  totalExpenses: numeric('total_expenses'),
+}).existing();
+
+export const monthlyRevenueView = pgView('v_monthly_revenue', {
+  userId: uuid('user_id'),
+  month: timestamp('month'),
+  revenue: numeric('revenue'),
+  invoiceCount: integer('invoice_count'),
+}).existing();

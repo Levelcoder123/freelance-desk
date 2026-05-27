@@ -11,11 +11,26 @@ export default defineConfig({
       usePolling: true,
       interval: 300,
     },
-
     proxy: {
       '/api': {
         target: 'http://api:3000',
         changeOrigin: true,
+      },
+    },
+  },
+
+  build: {
+    target: 'esnext',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Core React libraries
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          // Data fetching & State
+          'vendor-query': ['@tanstack/react-query', 'zustand', 'axios'],
+          // Heavy UI libraries
+          'vendor-recharts': ['recharts'],
+        },
       },
     },
   },

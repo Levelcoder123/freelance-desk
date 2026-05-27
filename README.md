@@ -1,206 +1,110 @@
-# Freelancer Dashboard
+# Freelance Desk
 
-All-in-one dashboard for freelancers to manage clients, projects, invoices, and expenses.
+A professional, full-stack, type-safe dashboard for freelancers to manage clients, projects, invoices, and expenses. Built with modern web technologies and a focus on developer experience and AI-assisted development.
 
-## Tech Stack
+## 🚀 Tech Stack
 
-| Layer       | Tech                            |
-|-------------|---------------------------------|
-| Frontend    | React 18 + Vite                 |
-| Backend     | Node.js 20+ (ESM) + Express.js  |
-| Database    | PostgreSQL 15+                  |
-| Cache/Queue | Redis + BullMQ                  |
-| Auth        | JWT (access + refresh rotation) |
-| Validation  | Zod                             |
-| Email       | Resend                          |
-| Payments    | Stripe                          |
-| Storage     | Cloudflare R2 / AWS S3          |
-| Docker      | Docker + Docker Compose         |
+### Backend
+- **Node.js (ESM)** & **Express.js**
+- **TypeScript** (100% type-safe)
+- **Drizzle ORM** for type-safe database access
+- **PostgreSQL** for persistent storage
+- **Redis** & **BullMQ** for background job processing
+- **Zod** for schema validation
+- **PDFKit** for professional invoice generation
+- **Resend** for transactional emails
+- **Stripe** for payment integration
 
-## Project Structure
+### Frontend
+- **React 19**
+- **TypeScript**
+- **Vite** for ultra-fast builds
+- **TanStack Query** (React Query) for state management
+- **Recharts** for interactive financial analytics
+- **Vanilla CSS** for flexible, lightweight styling
+
+### Infrastructure & Tooling
+- **Docker** & **Docker Compose** for consistent environments
+- **Makefile** for common developer tasks
+- **Agent Skills** system for AI-driven code quality and debugging
+
+## 📂 Project Structure
 
 ```
 freelance_desk/
-├── docker-compose.dev.yml    # Development environment
-├── docker-compose.prod.yml   # Production environment
-├── Makefile                  # Common commands
-├── .env                      # Environment variables
-│
-├── freelance-api/            # Backend API
+├── .agents/                  # Installed agent skills
+├── freelance-api/            # Backend API (TypeScript + Drizzle)
 │   ├── src/
-│   │   ├── index.js          # Entry point
-│   │   ├── config/           # Database & Redis config
-│   │   ├── db/               # Migrations
-│   │   ├── middleware/       # Auth, validation, rate limiting
-│   │   ├── routes/           # API endpoints
-│   │   ├── services/         # Stripe, email, PDF
-│   │   ├── workers/          # BullMQ background jobs
-│   │   └── utils/            # Helpers
-│   └── tests/                # Test files
+│   │   ├── index.ts          # ESM Entry point
+│   │   ├── config/           # Database, Redis & Auth config
+│   │   ├── db/               # Drizzle schema & migrations
+│   │   ├── middleware/       # Auth, validation, error handling
+│   │   ├── routes/           # REST API endpoints
+│   │   ├── services/         # Business logic (Stripe, Email, PDF, etc.)
+│   │   ├── workers/          # BullMQ background workers
+│   │   └── validations/      # Zod validation schemas
+│   └── tests/                # Integration & Unit tests
 │
-└── freelance-dashboard/      # React frontend
+└── freelance-dashboard/      # React Frontend (TypeScript + Vite)
     ├── src/
-    │   ├── api/              # API client
+    │   ├── api/              # API abstraction layer
     │   ├── components/       # Reusable UI components
     │   ├── hooks/            # Custom React hooks
-    │   ├── pages/             # Page components
-    │   ├── store/            # State management
-    │   └── utils/            # Helpers
-    └── public/               # Static assets
+    │   ├── pages/            # View components
+    │   ├── types/            # Shared TypeScript interfaces
+    │   └── utils/            # Formatting & Date helpers
 ```
 
-## Quick Start
+## 🛠️ Getting Started
 
 ### Prerequisites
-
-- Node.js 20+
 - Docker & Docker Compose
-- PostgreSQL 15+ (or use Docker)
-- Redis 7+ (or use Docker)
+- Node.js 20+ (for local development)
+- A `.env` file (see `.env.example`)
 
-### Option 1: Run with Docker (Recommended)
-
-```bash
-# Start all services (API, frontend, DB, Redis)
-docker-compose -f docker-compose.dev.yml up --build
-
-# API runs at http://localhost:3000
-# Frontend runs at http://localhost:5173
-```
-
-### Option 2: Run locally
+### 1. Launch with Docker (Recommended)
+The easiest way to start is using the provided Makefile:
 
 ```bash
-# Backend
-cd freelance-api
-npm install
-cp .env.example .env
-# Fill in your .env values
-npm run dev
+# Build and start all services (API, Dashboard, PG, Redis)
+make dev
 
-# Frontend (in another terminal)
-cd freelance-dashboard
-npm install
-npm run dev
+# Run database migrations
+make migrate
+
+# Seed with professional demo data
+make seed
 ```
 
-### Database Setup
+- **Dashboard:** [http://localhost:5173](http://localhost:5173)
+- **API:** [http://localhost:3000](http://localhost:3000)
 
-```bash
-# Create database
-psql -U postgres -c "CREATE DATABASE freelance_db;"
+### 2. Manual Commands
+| Task | Command |
+|------|---------|
+| Stop all containers | `make stop` |
+| View logs | `make logs` |
+| Build for production | `make prod` |
+| Run Type Check | `cd freelance-api && npx tsc --noEmit` |
 
-# Run migrations
-cd freelance-api
-npm run migrate
-```
+## 📦 Features & Capabilities
 
-## Environment Variables
+- **Authentication:** Secure JWT-based auth with access/refresh token rotation.
+- **Client CRM:** Manage client profiles, contact info, and hourly rates.
+- **Project Tracking:** Link expenses and invoices to specific projects with progress bars.
+- **Invoicing System:** 
+    - Automated PDF generation.
+    - Direct "Send to Client" via Resend.
+    - One-click Stripe payment links.
+- **Expense Management:** Category-based tracking with project associations.
+- **Financial Analytics:** Real-time dashboard showing revenue vs. expenses, tax estimates, and monthly goals.
 
-Create a `.env` file in the root (copy from `.env.example`):
+## 🤖 AI Development
+This project is optimized for AI-assisted development. It includes specialized skills in `.agents/skills/` for:
+- **`systematic-debugging`**: Rigorous root-cause analysis.
+- **`typescript-react-reviewer`**: High-quality code audits.
+- **`postgres-drizzle`**: Database optimization.
+- **`web-design-guidelines`**: Accessibility and UX excellence.
 
-| Variable | Description |
-|----------|-------------|
-| `NODE_ENV` | development or production |
-| `PORT` | API port (default: 3000) |
-| `DATABASE_URL` | PostgreSQL connection string |
-| `REDIS_URL` | Redis connection string |
-| `JWT_SECRET` | Secret for JWT tokens |
-| `JWT_REFRESH_SECRET` | Secret for refresh tokens |
-| `STRIPE_SECRET_KEY` | Stripe API key |
-| `RESEND_API_KEY` | Resend API key for emails |
-| `R2_ACCESS_KEY` | Cloudflare R2 credentials |
-| `R2_SECRET_KEY` | Cloudflare R2 credentials |
-| `R2_BUCKET_NAME` | R2 bucket name |
-| `R2_PUBLIC_URL` | Public URL for uploaded files |
-
-## API Reference
-
-### Auth
-| Method | Endpoint             | Description        | Auth |
-|--------|----------------------|--------------------|------|
-| POST   | /api/v1/auth/register | Register new user | No   |
-| POST   | /api/v1/auth/login    | Login             | No   |
-| POST   | /api/v1/auth/refresh  | Refresh token     | No   |
-| POST   | /api/v1/auth/logout   | Logout            | Yes  |
-| GET    | /api/v1/auth/me       | Get profile       | Yes  |
-| PATCH  | /api/v1/auth/me       | Update profile    | Yes  |
-
-### Clients
-| Method | Endpoint              | Description         |
-|--------|-----------------------|---------------------|
-| GET    | /api/v1/clients       | List + search       |
-| POST   | /api/v1/clients       | Create client       |
-| GET    | /api/v1/clients/:id   | Get with invoices   |
-| PATCH  | /api/v1/clients/:id   | Update              |
-| DELETE | /api/v1/clients/:id   | Delete              |
-
-### Invoices
-| Method | Endpoint                   | Description         |
-|--------|----------------------------|---------------------|
-| GET    | /api/v1/invoices           | List + filter       |
-| POST   | /api/v1/invoices           | Create invoice      |
-| GET    | /api/v1/invoices/:id       | Get details         |
-| PATCH  | /api/v1/invoices/:id       | Update / pay        |
-| DELETE | /api/v1/invoices/:id       | Delete              |
-| POST   | /api/v1/invoices/:id/send  | Send to client      |
-
-### Projects
-| Method | Endpoint              | Description    |
-|--------|-----------------------|----------------|
-| GET    | /api/v1/projects      | List           |
-| POST   | /api/v1/projects      | Create         |
-| PATCH  | /api/v1/projects/:id  | Update         |
-| DELETE | /api/v1/projects/:id  | Delete         |
-
-### Expenses
-| Method | Endpoint              | Description         |
-|--------|-----------------------|---------------------|
-| GET    | /api/v1/expenses      | List + summary      |
-| POST   | /api/v1/expenses      | Log expense         |
-| PATCH  | /api/v1/expenses/:id  | Update              |
-| DELETE | /api/v1/expenses/:id  | Delete              |
-
-### Dashboard
-| Method | Endpoint           | Description                  |
-|--------|--------------------|------------------------------|
-| GET    | /api/v1/dashboard  | All stats in one request     |
-
-## Available Scripts
-
-From root directory using Makefile:
-
-```bash
-make dev          # Start development environment
-make prod         # Start production environment
-make stop         # Stop all containers
-make logs         # View logs
-make db-migrate   # Run database migrations
-make db-reset     # Reset database (dangerous!)
-```
-
-From freelance-api:
-
-```bash
-npm run dev       # Development with nodemon
-npm start         # Production
-npm run migrate   # Run migrations
-npm test          # Run tests
-```
-
-From freelance-dashboard:
-
-```bash
-npm run dev       # Start dev server
-npm run build     # Build for production
-npm run preview   # Preview production build
-```
-
-## What's Next
-
-- [ ] Stripe service — payment links on invoices
-- [ ] Resend service — invoice email delivery
-- [ ] PDF worker — generate & store invoice PDFs
-- [ ] BullMQ — overdue checker & reminder scheduler
-- [ ] Tests — auth + invoice flows
-- [ ] TypeScript migration
+## 📜 License
+MIT

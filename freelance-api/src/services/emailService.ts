@@ -107,10 +107,11 @@ interface InvoiceEmailData {
     dueDate?: string;
     pdfUrl: string | null;
     paymentLink: string | null;
+    pdfBuffer?: Buffer;
 }
 
 export async function sendInvoiceEmail({ to, invoiceNumber, clientName, amount,
-    currency, dueDate, pdfUrl, paymentLink }: InvoiceEmailData): Promise<void> {
+    currency, dueDate, pdfUrl, paymentLink, pdfBuffer }: InvoiceEmailData): Promise<void> {
 
     const formatted = new Intl.NumberFormat('en-US', {
         style: 'currency', currency: currency || 'USD',
@@ -125,7 +126,7 @@ export async function sendInvoiceEmail({ to, invoiceNumber, clientName, amount,
         amountDueRow: await statRow('Amount due', `<span style="color:${T.accent};font-size:16px;">${formatted}</span>`),
         dueDateRow: await statRow('Due date', dueDateFmt, { last: true }),
         paymentButton: paymentLink ? `<td style="padding-right:12px;">${await btn('Pay Now', paymentLink)}</td>` : '',
-        pdfButton: pdfUrl ? `<td>${await ghostBtn('📄 Download PDF', pdfUrl)}</td>` : '',
+        pdfButton: pdfUrl && !pdfBuffer ? `<td>${await ghostBtn('📄 Download PDF', pdfUrl)}</td>` : '',
         divider: await divider()
     });
 
@@ -133,11 +134,17 @@ export async function sendInvoiceEmail({ to, invoiceNumber, clientName, amount,
         previewText: `Invoice ${invoiceNumber} for ${formatted} — due ${dueDateFmt}.`,
     });
 
+    const attachments = pdfBuffer ? [{
+        filename: `Invoice_${invoiceNumber}.pdf`,
+        content: pdfBuffer,
+    }] : [];
+
     const { error } = await resend.emails.send({
         from: FROM,
         to,
         subject: `Invoice ${invoiceNumber} — ${formatted} due ${dueDateFmt}`,
         html,
+        attachments,
     });
 
     if (error) {

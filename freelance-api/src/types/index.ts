@@ -85,7 +85,6 @@ export interface Invoice {
   paidAt: Date | null;
   notes: string | null;
   lineItems: InvoiceLineItem[];
-  pdfUrl: string | null;
   stripePaymentLink: string | null;
   createdAt: Date;
   updatedAt: Date;

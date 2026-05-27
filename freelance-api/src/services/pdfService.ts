@@ -1,18 +1,6 @@
 // src/services/pdfService.ts
 import PDFDocument from 'pdfkit';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { Invoice } from '../types/index.js';
-
-const s3 = new S3Client({
-    region: process.env.S3_REGION || 'auto',
-    endpoint: process.env.S3_ENDPOINT,
-    credentials: {
-        accessKeyId: process.env.S3_ACCESS_KEY as string,
-        secretAccessKey: process.env.S3_SECRET_KEY as string,
-    },
-});
-
-const BUCKET = process.env.S3_BUCKET || 'freelance-invoices';
 
 // ── Design Tokens ───────────────────────────────────────────────────
 const STYLES = {
@@ -244,10 +232,4 @@ export async function generateInvoicePdf(invoice: Invoice): Promise<Buffer> {
         new InvoiceDrawer(doc, invoice).draw();
         doc.end();
     });
-}
-
-export async function uploadToStorage(buffer: Buffer, filename: string): Promise<string> {
-    await s3.send(new PutObjectCommand({ Bucket: BUCKET, Key: filename, Body: buffer, ContentType: 'application/pdf' }));
-    const base = process.env.R2_PUBLIC_URL || `${process.env.S3_ENDPOINT}/${BUCKET}`;
-    return `${base}/${filename}`;
 }

@@ -4,7 +4,7 @@ import redis from '../config/redis.js';
 import { db } from '../config/database.js';
 import { invoices, clients, users } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
-import { generateInvoicePdf, uploadToStorage } from '../services/pdfService.js';
+import { generateInvoicePdf } from '../services/pdfService.js';
 import { createPaymentLink } from '../services/stripeService.js';
 import { sendInvoiceEmail, sendPaymentConfirmation } from '../services/emailService.js';
 import logger from '../utils/logger.js';
@@ -57,18 +57,7 @@ const worker = new Worker('invoices', async (job: Job<InvoiceJobData>) => {
     const pdfBuffer = await generateInvoicePdf(invoice as Invoice);
     await job.updateProgress(40);
 
-    // 3. Upload PDF to R2 / S3
-    let pdfUrl: string | null = null;
-    try {
-        logger.info(`[invoiceWorker] Job ${job.id}: Uploading to storage...`);
-        const filename = `invoices/${invoice.userId}/${invoice.invoiceNumber}.pdf`;
-        pdfUrl = await uploadToStorage(pdfBuffer, filename);
-    } catch (err: any) {
-        logger.warn(`[invoiceWorker] Job ${job.id}: Storage upload failed, continuing without PDF link`, err.message);
-    }
-    await job.updateProgress(60);
-
-    // 4. Create Stripe payment link
+    // 3. Create Stripe payment link
     let paymentLink: string | null = null;
     try {
         logger.info(`[invoiceWorker] Job ${job.id}: Creating Stripe link...`);
@@ -78,9 +67,9 @@ const worker = new Worker('invoices', async (job: Job<InvoiceJobData>) => {
     }
     await job.updateProgress(75);
 
-    // 5. Persist back to DB
+    // 4. Persist back to DB
     await db.update(invoices)
-        .set({ pdfUrl, stripePaymentLink: paymentLink })
+        .set({ stripePaymentLink: paymentLink })
         .where(eq(invoices.id, invoiceId));
     
     await job.updateProgress(85);
@@ -91,7 +80,7 @@ const worker = new Worker('invoices', async (job: Job<InvoiceJobData>) => {
           })
         : 'on receipt';
 
-    // 6. Send invoice email to client
+    // 5. Send invoice email to client
     logger.info(`[invoiceWorker] Job ${job.id}: Sending email via Resend to ${invoice.client_email}...`);
     await sendInvoiceEmail({
         to: invoice.client_email,
@@ -100,13 +89,14 @@ const worker = new Worker('invoices', async (job: Job<InvoiceJobData>) => {
         amount: parseFloat(invoice.totalAmount as any),
         currency: invoice.currency,
         dueDate: displayDate,
-        pdfUrl,
+        pdfUrl: null,
         paymentLink,
+        pdfBuffer,
     });
     logger.info(`[invoiceWorker] Job ${job.id}: Success!`);
     await job.updateProgress(100);
 
-    return { pdfUrl, paymentLink };
+    return { paymentLink };
 }, {
     connection: redis,
     concurrency: 5,

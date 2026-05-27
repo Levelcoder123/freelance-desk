@@ -81,7 +81,6 @@ export const invoices = pgTable('invoices', {
   dueDate: date('due_date'),
   paidAt: timestamp('paid_at', { withTimezone: true }),
   notes: text('notes'),
-  pdfUrl: text('pdf_url'),
   stripePaymentLink: varchar('stripe_payment_link', { length: 500 }),
   lineItems: jsonb('line_items').default('[]'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),

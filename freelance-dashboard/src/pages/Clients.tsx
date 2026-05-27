@@ -2,94 +2,96 @@ import React, { useState } from 'react'
 import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from '../hooks/useClients'
 import Modal      from '../components/ui/Modal'
 import ClientForm from '../components/forms/ClientForm'
-import Table      from '../components/ui/Table'
 import Button     from '../components/ui/Button'
-import { Client } from '../types'
 import { formatCurrency } from '../utils/currency'
+import { Client } from '../types'
 
 export default function Clients() {
-  const [search, setSearch]     = useState('')
-  const [open, setOpen]         = useState(false)
-  const [editing, setEditing]   = useState<Client | null>(null)
+  const { data: clientsRes, isLoading } = useClients({})
+  const createClient = useCreateClient()
+  const updateClient = useUpdateClient()
+  const deleteClient = useDeleteClient()
 
-  const { data, isLoading }  = useClients({ search })
-  const createClient         = useCreateClient()
-  const updateClient         = useUpdateClient()
-  const deleteClient         = useDeleteClient()
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<Client | null>(null)
 
-  const clients = data?.data ?? []
+  const clients = clientsRes?.data ?? []
 
-  const columns = [
-    {
-      key: 'name',
-      label: 'Name',
-      render: (val: string) => <span style={{ fontWeight: 500 }}>{val}</span>,
-    },
-    {
-      key: 'email',
-      label: 'Email',
-      muted: true,
-    },
-    {
-      key: 'company',
-      label: 'Company',
-      muted: true,
-      render: (val: string | null) => val ?? '—',
-    },
-    {
-      key: 'hourlyRate',
-      label: 'Rate',
-      render: (val: string | null) => val ? formatCurrency(parseFloat(val)) : '—',
-    },
-    {
-      key: 'actions',
-      label: '',
-      align: 'right' as const,
-      render: (_: any, row: Client) => (
-        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-          <Button size="sm" onClick={e => { e.stopPropagation(); setEditing(row); setOpen(true) }}>Edit</Button>
-          <Button
-            size="sm"
-            variant="danger"
-            loading={deleteClient.isPending && deleteClient.variables === row.id}
-            onClick={e => { e.stopPropagation(); deleteClient.mutate(row.id) }}
-          >Delete</Button>
-        </div>
-      ),
-    },
-  ]
+  if (isLoading) return <p style={{ color: 'var(--text-secondary)' }}>Loading…</p>
 
   return (
-    <div>
+    <div className="page-fade-in">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h2 style={{ fontWeight: 500, margin: 0 }}>Clients</h2>
+        <h2 style={{ margin: 0 }}>Clients</h2>
         <Button variant="primary" onClick={() => { setEditing(null); setOpen(true) }}>
-          + Add client
+          New Client
         </Button>
       </div>
 
-      <input
-        placeholder="Search clients…" value={search}
-        onChange={e => setSearch(e.target.value)}
-        style={{ marginBottom: '1rem', width: 280 }}
-      />
+      <div className="card" style={{ overflow: 'hidden' }}>
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Client / Company</th>
+              <th>Contact</th>
+              <th>Rate</th>
+              <th>Status</th>
+              <th style={{ textAlign: 'right' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {clients.length === 0 ? (
+              <tr>
+                <td colSpan={5} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                  No clients found. Create your first one!
+                </td>
+              </tr>
+            ) : (
+              clients.map(c => (
+                <tr key={c.id}>
+                  <td>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{c.name}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{c.company || '—'}</div>
+                  </td>
+                  <td>
+                    <div style={{ fontSize: 13 }}>{c.email || '—'}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{c.phone || ''}</div>
+                  </td>
+                  <td style={{ fontSize: 13, fontWeight: 500 }}>
+                    {c.hourlyRate ? `${formatCurrency(c.hourlyRate)}/hr` : '—'}
+                  </td>
+                  <td>
+                    <span className={`badge ${c.status === 'active' ? 'badge-success' : 'badge-neutral'}`}>
+                      {c.status}
+                    </span>
+                  </td>
+                  <td style={{ textAlign: 'right' }}>
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                      <Button size="sm" onClick={() => { setEditing(c); setOpen(true) }}>Edit</Button>
+                      <Button size="sm" variant="danger" onClick={() => {
+                        if (confirm(`Delete ${c.name}? This will also delete their projects and invoices.`)) {
+                          deleteClient.mutate(c.id)
+                        }
+                      }}>Delete</Button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
-      {isLoading ? (
-        <p style={{ color: 'var(--color-text-secondary)' }}>Loading…</p>
-      ) : clients.length === 0 ? (
-        <p style={{ color: 'var(--color-text-secondary)' }}>No clients yet.</p>
-      ) : (
-        <Table columns={columns} rows={clients} onRowClick={(c) => { setEditing(c); setOpen(true) }} />
-      )}
-
-      <Modal open={open} onClose={() => setOpen(false)} title={editing ? 'Edit client' : 'New client'}>
-        <ClientForm
+      <Modal open={open} onClose={() => setOpen(false)}>
+        <Modal.Header>{editing ? 'Edit Client' : 'New Client'}</Modal.Header>
+        <Modal.Body>
+          <ClientForm
             initial={editing}
-            loading={editing ? updateClient.isPending : createClient.isPending}
-            onSubmit={async data => {
+            loading={createClient.isPending || updateClient.isPending}
+            onSubmit={async (data) => {
               try {
                 if (editing) {
-                  await updateClient.mutateAsync({ id: editing.id, data })
+                  await updateClient.mutateAsync({ id: editing.id, data: data })
                 } else {
                   await createClient.mutateAsync(data)
                 }
@@ -98,7 +100,8 @@ export default function Clients() {
                 console.error('Failed to save client:', err)
               }
             }}
-            />
+          />
+        </Modal.Body>
       </Modal>
     </div>
   )

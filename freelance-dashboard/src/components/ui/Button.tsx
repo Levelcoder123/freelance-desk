@@ -25,6 +25,7 @@ export default function Button({
   type     = 'button',
   className = '',
   style = {},
+  'aria-label': ariaLabel,
   ...props
 }: ButtonProps) {
   const cls = [VARIANT_CLASS[variant], SIZE_CLASS[size], className].filter(Boolean).join(' ')
@@ -36,11 +37,17 @@ export default function Button({
       onClick={onClick}
       className={cls}
       style={style}
+      aria-label={ariaLabel || (loading ? 'Loading…' : undefined)}
       {...props}
     >
       {loading ? (
         <>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite' }}>
+          <svg 
+            width="13" height="13" viewBox="0 0 24 24" fill="none" 
+            stroke="currentColor" strokeWidth="2" strokeLinecap="round" 
+            style={{ animation: 'spin 0.8s linear infinite' }}
+            aria-hidden="true"
+          >
             <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
           </svg>
           Loading…
@@ -54,6 +61,11 @@ export default function Button({
 if (typeof document !== 'undefined' && !document.getElementById('btn-spin')) {
   const s = document.createElement('style')
   s.id = 'btn-spin'
-  s.textContent = '@keyframes spin { to { transform: rotate(360deg); } }'
+  s.textContent = `
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .btn-primary, .btn-secondary, .btn-danger, .btn-ghost {
+      transition: background-color 0.15s ease, opacity 0.15s ease, transform 0.1s ease;
+    }
+  `
   document.head.appendChild(s)
 }

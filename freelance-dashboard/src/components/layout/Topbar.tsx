@@ -45,23 +45,27 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
   return (
     <header className="topbar">
       <div className="topbar-left">
-        <button className="sidebar-toggle" onClick={onMenuClick} aria-label="Open menu">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        <button className="sidebar-toggle" onClick={onMenuClick} aria-label="Open sidebar menu">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
             <line x1="3" y1="6"  x2="21" y2="6"/>
             <line x1="3" y1="12" x2="21" y2="12"/>
             <line x1="3" y1="18" x2="21" y2="18"/>
           </svg>
         </button>
-        <span className="topbar-breadcrumb">Freelance</span>
-        <span className="topbar-sep">/</span>
+        <span className="topbar-breadcrumb" translate="no">Freelance</span>
+        <span className="topbar-sep" aria-hidden="true">/</span>
         <span className="topbar-title">{title}</span>
       </div>
 
       <div className="topbar-right">
         {/* Theme toggle */}
-        <button className="theme-toggle" onClick={toggle} aria-label="Toggle theme">
+        <button 
+          className="theme-toggle" 
+          onClick={toggle} 
+          aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
           {isDark ? (
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <circle cx="12" cy="12" r="5"/>
               <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
               <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
@@ -69,7 +73,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
               <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
             </svg>
           ) : (
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
             </svg>
           )}
@@ -80,10 +84,11 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
           <button
             className="profile-btn"
             onClick={() => setOpen(o => !o)}
-            aria-label="Profile menu"
+            aria-label="User profile menu"
             aria-expanded={open}
+            aria-haspopup="true"
           >
-            <div className="avatar">{initials}</div>
+            <div className="avatar" aria-hidden="true">{initials}</div>
             <div className="profile-info">
               <span className="profile-name">{user?.fullName ?? 'Account'}</span>
               <span className="profile-email">{user?.email ?? ''}</span>
@@ -92,36 +97,39 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
               width="12" height="12" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" strokeWidth="2" strokeLinecap="round"
               style={{ transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'rotate(0deg)', opacity: 0.4 }}
+              aria-hidden="true"
             >
               <polyline points="6 9 12 15 18 9"/>
             </svg>
           </button>
 
           {open && (
-            <div className="profile-dropdown">
+            <div className="profile-dropdown" role="menu">
               <button
                 className="profile-dropdown-item"
+                role="menuitem"
                 onClick={() => { setOpen(false); navigate('/profile') }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                   <circle cx="12" cy="7" r="4"/>
                 </svg>
-                Profile & settings
+                Profile & Settings
               </button>
 
-              <div className="profile-dropdown-divider" />
+              <div className="profile-dropdown-divider" role="separator" />
 
               <button
                 className="profile-dropdown-item profile-dropdown-danger"
+                role="menuitem"
                 onClick={() => { setOpen(false); logout.mutate() }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
                   <polyline points="16 17 21 12 16 7"/>
                   <line x1="21" y1="12" x2="9" y2="12"/>
                 </svg>
-                Sign out
+                Sign Out
               </button>
             </div>
           )}

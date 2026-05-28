@@ -1,5 +1,5 @@
 // tests/integration/dashboard.test.js
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { request, app, createTestUser, createTestClient, cleanUser, query, closeTestResources } from '../setup/setup.js';
 
 let auth;
@@ -30,17 +30,17 @@ describe('Dashboard route', () => {
             .set('Authorization', `Bearer ${auth.accessToken}`);
         expect(res.status).toBe(200);
         expect(res.body).toHaveProperty('summary');
-        expect(res.body).toHaveProperty('monthly_revenue');
+        expect(res.body).toHaveProperty('monthlyRevenue');
         expect(res.body).toHaveProperty('deadlines');
-        expect(res.body).toHaveProperty('recent_invoices');
+        expect(res.body).toHaveProperty('recentInvoices');
         expect(res.body).toHaveProperty('tax');
         expect(res.body).toHaveProperty('goal');
     });
 
-    it('summary.total_earned reflects seeded paid invoice', async () => {
+    it('summary.totalEarned reflects seeded paid invoice', async () => {
         const res = await request(app).get('/api/v1/dashboard')
             .set('Authorization', `Bearer ${auth.accessToken}`);
-        expect(parseFloat(res.body.summary.total_earned)).toBeGreaterThanOrEqual(1500);
+        expect(parseFloat(res.body.summary.totalEarned)).toBeGreaterThanOrEqual(1500);
     });
 
     it('tax object has correct shape', async () => {
@@ -48,11 +48,10 @@ describe('Dashboard route', () => {
             .set('Authorization', `Bearer ${auth.accessToken}`);
         const { tax } = res.body;
         expect(typeof tax.gross).toBe('number');
-        expect(typeof tax.tax_owed).toBe('number');
+        expect(typeof tax.taxOwed).toBe('number');
         expect(typeof tax.taxable).toBe('number');
-        expect(tax.tax_owed).toBeGreaterThanOrEqual(0);
+        expect(tax.taxOwed).toBeGreaterThanOrEqual(0);
     });
-
     it('goal.percent is between 0 and 100', async () => {
         const res = await request(app).get('/api/v1/dashboard')
             .set('Authorization', `Bearer ${auth.accessToken}`);

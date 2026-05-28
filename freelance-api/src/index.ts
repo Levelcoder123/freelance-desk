@@ -110,7 +110,7 @@ app.use((_: Request, res: Response) => res.status(404).json({ error: 'Route not 
 // ── Global error handler (must be last)
 app.use(errorHandler);
 
-if (process.env.NODE_ENV !== 'test' && process.env.JEST_WORKER_ID === undefined) {
+if (process.env.NODE_ENV !== 'test') {
     app.listen(PORT, () => logger.info(`API running on :${PORT}`));
     registerScheduledJobs().catch(err => logger.error('Failed to register scheduled jobs', err));
 }

@@ -1,5 +1,5 @@
 // tests/integration/clients.test.js
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { request, app, createTestUser, cleanUser, closeTestResources } from '../setup/setup.js';
 
 let auth, clientId;
@@ -83,10 +83,10 @@ describe('Clients routes', () => {
         it('200 — updates fields', async () => {
             const res = await request(app).patch(`/api/v1/clients/${clientId}`)
                 .set('Authorization', `Bearer ${auth.accessToken}`)
-                .send({ hourly_rate: 150, status: 'inactive' });
+                .send({ hourlyRate: 150, status: 'inactive' });
             expect(res.status).toBe(200);
             expect(res.body.status).toBe('inactive');
-            expect(parseFloat(res.body.hourly_rate)).toBe(150);
+            expect(parseFloat(res.body.hourlyRate)).toBe(150);
         });
 
         it('404 — another user cannot update', async () => {

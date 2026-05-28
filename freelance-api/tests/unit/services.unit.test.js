@@ -1,5 +1,6 @@
-import { jest } from '@jest/globals';
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
+
+vi.unmock('../../src/services/emailService.js');
 
 // ── pdfService ────────────────────────────────────────────────────────────────
 describe('pdfService — generateInvoicePdf', () => {
@@ -32,10 +33,14 @@ describe('pdfService — generateInvoicePdf', () => {
 });
 
 // ── emailService ──────────────────────────────────────────────────────────────
-const mockSend = jest.fn().mockResolvedValue({ id: "email-id" });
-jest.unstable_mockModule("resend", () => ({
-    Resend: jest.fn().mockImplementation(() => ({ emails: { send: mockSend } })),
-}));
+const { mockSend } = vi.hoisted(() => ({ mockSend: vi.fn().mockResolvedValue({ id: "email-id" }) }));
+vi.mock("resend", () => {
+    return {
+        Resend: class {
+            emails = { send: mockSend }
+        }
+    };
+});
 
 describe('emailService', () => {
     beforeEach(() => {
@@ -47,8 +52,9 @@ describe('emailService', () => {
         await sendInvoiceEmail({
             to: 'client@example.com', invoiceNumber: 'INV-001',
             clientName: 'Acme', amount: 1100, currency: 'USD',
-            dueDate: '2024-01-31', pdfUrl: 'https://r2.example.com/inv.pdf',
+            dueDate: '2024-01-31',
             paymentLink: 'https://buy.stripe.com/test',
+            pdfBuffer: Buffer.from('test'),
         });
         expect(mockSend).toHaveBeenCalled();
     });

@@ -6,5 +6,5 @@ export default async function () {
     process.env.DATABASE_URL = process.env.TEST_DATABASE_URL
         || 'postgresql://user:password@localhost:5432/freelance_test';
     process.env.NODE_ENV = 'test';
-    execSync('node src/db/migrate.js', { stdio: 'inherit' });
+    execSync('npx tsx src/db/migrate.ts', { stdio: 'inherit' });
 }

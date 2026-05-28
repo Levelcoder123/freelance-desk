@@ -1,5 +1,5 @@
 // tests/integration/expenses.test.js
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { request, app, createTestUser, cleanUser, closeTestResources } from '../setup/setup.js';
 
 let auth, expenseId;

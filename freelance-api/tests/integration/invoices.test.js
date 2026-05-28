@@ -1,5 +1,5 @@
 // tests/integration/invoices.test.js
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { request, app, createTestUser, createTestClient, cleanUser, closeTestResources } from '../setup/setup.js';
 
 let auth, client, invoiceId;
@@ -19,37 +19,37 @@ describe('Invoices routes', () => {
             const res = await request(app).post('/api/v1/invoices')
                 .set('Authorization', `Bearer ${auth.accessToken}`)
                 .send({
-                    client_id: client.id, invoice_number: 'INV-001',
-                    amount: 1000, currency: 'USD', tax_rate: 10, due_date: '2025-12-31',
-                    line_items: [{ description: 'Dev work', quantity: 10, rate: 100, amount: 1000 }],
+                    clientId: client.id, invoiceNumber: 'INV-001',
+                    amount: 1000, currency: 'USD', taxRate: 10, dueDate: '2025-12-31',
+                    lineItems: [{ description: 'Dev work', quantity: 10, rate: 100, amount: 1000 }],
                 });
             expect(res.status).toBe(201);
-            expect(res.body.invoice_number).toBe('INV-001');
-            expect(parseFloat(res.body.total_amount)).toBe(1100);  // generated column
+            expect(res.body.invoiceNumber).toBe('INV-001');
+            expect(parseFloat(res.body.totalAmount)).toBe(1100);  // generated column
             invoiceId = res.body.id;
         });
 
-        it('409 — duplicate invoice_number for same user', async () => {
+        it('409 — duplicate invoiceNumber for same user', async () => {
             const res = await request(app).post('/api/v1/invoices')
                 .set('Authorization', `Bearer ${auth.accessToken}`)
-                .send({ invoice_number: 'INV-001', amount: 500 });
+                .send({ invoiceNumber: 'INV-001', amount: 500 });
             expect(res.status).toBe(409);
         });
 
         it('422 — negative amount', async () => {
             const res = await request(app).post('/api/v1/invoices')
                 .set('Authorization', `Bearer ${auth.accessToken}`)
-                .send({ invoice_number: 'INV-002', amount: -1 });
+                .send({ invoiceNumber: 'INV-002', amount: -1 });
             expect(res.status).toBe(422);
         });
     });
 
     describe('GET /invoices', () => {
-        it('200 — returns list with client_name', async () => {
+        it('200 — returns list with clientName', async () => {
             const res = await request(app).get('/api/v1/invoices')
                 .set('Authorization', `Bearer ${auth.accessToken}`);
             expect(res.status).toBe(200);
-            expect(res.body.data[0].client_name).toBeDefined();
+            expect(res.body.data[0].clientName).toBeDefined();
         });
 
         it('200 — filters by status', async () => {
@@ -65,7 +65,7 @@ describe('Invoices routes', () => {
             const res = await request(app).get(`/api/v1/invoices/${invoiceId}`)
                 .set('Authorization', `Bearer ${auth.accessToken}`);
             expect(res.status).toBe(200);
-            expect(res.body.client_email).toBeDefined();
+            expect(res.body.clientEmail).toBeDefined();
         });
 
         it('404 — unknown id', async () => {
@@ -77,21 +77,21 @@ describe('Invoices routes', () => {
     });
 
     describe('PATCH /invoices/:id', () => {
-        it('200 — marks invoice as paid and sets paid_at', async () => {
+        it('200 — marks invoice as paid and sets paidAt', async () => {
             const res = await request(app).patch(`/api/v1/invoices/${invoiceId}`)
                 .set('Authorization', `Bearer ${auth.accessToken}`)
                 .send({ status: 'paid' });
             expect(res.status).toBe(200);
             expect(res.body.status).toBe('paid');
-            expect(res.body.paid_at).not.toBeNull();
+            expect(res.body.paidAt).not.toBeNull();
         });
 
-        it('200 — clears paid_at when status reverts to pending', async () => {
+        it('200 — clears paidAt when status reverts to pending', async () => {
             const res = await request(app).patch(`/api/v1/invoices/${invoiceId}`)
                 .set('Authorization', `Bearer ${auth.accessToken}`)
                 .send({ status: 'pending' });
             expect(res.status).toBe(200);
-            expect(res.body.paid_at).toBeNull();
+            expect(res.body.paidAt).toBeNull();
         });
     });
 
@@ -100,7 +100,7 @@ describe('Invoices routes', () => {
             const res = await request(app).post(`/api/v1/invoices/${invoiceId}/send`)
                 .set('Authorization', `Bearer ${auth.accessToken}`);
             expect(res.status).toBe(200);
-            expect(res.body.invoice_id).toBe(invoiceId);
+            expect(res.body.invoice_id).toBe(invoiceId); // Fixed ID check
             // Verify status updated in DB
             const check = await request(app).get(`/api/v1/invoices/${invoiceId}`)
                 .set('Authorization', `Bearer ${auth.accessToken}`);

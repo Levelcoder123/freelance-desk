@@ -1,5 +1,5 @@
 // tests/integration/projects.test.js
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { request, app, createTestUser, createTestClient, cleanUser, closeTestResources } from '../setup/setup.js';
 
 let auth, client, projectId;
@@ -37,11 +37,11 @@ describe('Projects routes', () => {
     });
 
     describe('GET /projects', () => {
-        it('200 — returns all projects with client_name', async () => {
+        it('200 — returns all projects with clientName', async () => {
             const res = await request(app).get('/api/v1/projects')
                 .set('Authorization', `Bearer ${auth.accessToken}`);
             expect(res.status).toBe(200);
-            expect(res.body.data[0].client_name).toBeDefined();
+            expect(res.body.data[0].clientName).toBeDefined();
         });
 
         it('200 — filters by priority', async () => {

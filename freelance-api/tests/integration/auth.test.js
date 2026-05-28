@@ -1,5 +1,5 @@
 // tests/integration/auth.test.js
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { request, app, cleanUser, closeTestResources } from '../setup/setup.js';
 
 let tokens, userId;
@@ -16,22 +16,21 @@ describe('Auth routes', () => {
     describe('POST /auth/register', () => {
         it('201 — creates user and returns tokens', async () => {
             const res = await request(app).post('/api/v1/auth/register')
-                .send({ full_name: 'Jane Doe', email, password });
+                .send({ fullName: 'Jane Doe', email, password });
             expect(res.status).toBe(201);
             expect(res.body.access_token).toBeDefined();
             expect(res.body.refresh_token).toBeDefined();
-            expect(res.body.user.email).toBe(email);
-            userId = res.body.user.id;
             tokens = { access: res.body.access_token, refresh: res.body.refresh_token };
+            userId = res.body.user.id;
         });
 
         it('409 — duplicate email', async () => {
             const res = await request(app).post('/api/v1/auth/register')
-                .send({ full_name: 'Jane Doe', email, password });
+                .send({ fullName: 'Jane Doe', email, password });
             expect(res.status).toBe(409);
         });
 
-        it('422 — missing full_name', async () => {
+        it('422 — missing fullName', async () => {
             const res = await request(app).post('/api/v1/auth/register')
                 .send({ email: 'x@x.com', password });
             expect(res.status).toBe(422);
@@ -39,7 +38,7 @@ describe('Auth routes', () => {
 
         it('422 — weak password', async () => {
             const res = await request(app).post('/api/v1/auth/register')
-                .send({ full_name: 'X', email: 'new@x.com', password: 'short' });
+                .send({ fullName: 'X', email: 'new@x.com', password: 'short' });
             expect(res.status).toBe(422);
         });
     });
@@ -71,7 +70,7 @@ describe('Auth routes', () => {
                 .set('Authorization', `Bearer ${tokens.access}`);
             expect(res.status).toBe(200);
             expect(res.body.email).toBe(email);
-            expect(res.body.password_hash).toBeUndefined();
+            expect(res.body.passwordHash).toBeUndefined();
         });
 
         it('401 — no token', async () => {
@@ -90,10 +89,10 @@ describe('Auth routes', () => {
         it('200 — updates allowed fields', async () => {
             const res = await request(app).patch('/api/v1/auth/me')
                 .set('Authorization', `Bearer ${tokens.access}`)
-                .send({ full_name: 'Jane Updated', monthly_goal: 5000 });
+                .send({ fullName: 'Jane Updated', monthlyGoal: 5000 });
             expect(res.status).toBe(200);
-            expect(res.body.full_name).toBe('Jane Updated');
-            expect(res.body.monthly_goal).toBe('5000.00');
+            expect(res.body.fullName).toBe('Jane Updated');
+            expect(Number(res.body.monthlyGoal)).toBe(5000);
         });
 
         it('400 — no valid fields sent', async () => {

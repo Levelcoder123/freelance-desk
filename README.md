@@ -1,110 +1,111 @@
-# Freelance Desk
+<div align="center">
+  <h1>🚀 Freelance Desk</h1>
+  <p><strong>An advanced, type-safe, and highly optimized full-stack operations dashboard for freelancers.</strong></p>
 
-A professional, full-stack, type-safe dashboard for freelancers to manage clients, projects, invoices, and expenses. Built with modern web technologies and a focus on developer experience and AI-assisted development.
+  [![CI](https://github.com/Levelcoder123/freelance-desk/actions/workflows/ci.yml/badge.svg)](https://github.com/Levelcoder123/freelance-desk/actions/workflows/ci.yml)
+  [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+  [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+  [![Node.js](https://img.shields.io/badge/Node.js-20+-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+  [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+  [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+</div>
 
-## 🚀 Tech Stack
+<br />
 
-### Backend
-- **Node.js (ESM)** & **Express.js**
-- **TypeScript** (100% type-safe)
-- **Drizzle ORM** for type-safe database access
-- **PostgreSQL** for persistent storage
-- **Redis** & **BullMQ** for background job processing
-- **Zod** for schema validation
-- **PDFKit** for professional invoice generation
-- **Resend** for transactional emails
-- **Stripe** for payment integration
+Freelance Desk is a production-grade application engineered to handle the complete financial and operational lifecycle of a freelance business. It moves beyond standard CRUD apps by implementing advanced architectural patterns, background job queues, compound React components, and comprehensive CI/CD pipelines.
 
-### Frontend
-- **React 19**
-- **TypeScript**
-- **Vite** for ultra-fast builds
-- **TanStack Query** (React Query) for state management
-- **Recharts** for interactive financial analytics
-- **Vanilla CSS** for flexible, lightweight styling
+## ✨ Core Capabilities
 
-### Infrastructure & Tooling
-- **Docker** & **Docker Compose** for consistent environments
-- **Makefile** for common developer tasks
-- **Agent Skills** system for AI-driven code quality and debugging
+- **Financial Analytics Engine:** Real-time dashboards powered by **Drizzle ORM SQL Views**, calculating gross revenue, tax obligations, overdue balances, and expense categorization dynamically.
+- **Automated Invoicing Workflow:** Generates professional, fully-styled PDF invoices on the fly (via `pdfkit`) and securely delivers them as native email attachments using **Resend**.
+- **Payment Integration:** One-click integration with **Stripe** to generate seamless payment links directly embedded in client emails.
+- **Client & Project CRM:** Hierarchical relationships tracking clients, their associated active projects, progress states, and linked expenses.
+- **Enterprise Authentication:** Highly secure, JWT-based authentication featuring robust **Access/Refresh Token Rotation** and secure password reset flows.
 
-## 📂 Project Structure
+---
 
-```
-freelance_desk/
-├── .agents/                  # Installed agent skills
-├── freelance-api/            # Backend API (TypeScript + Drizzle)
-│   ├── src/
-│   │   ├── index.ts          # ESM Entry point
-│   │   ├── config/           # Database, Redis & Auth config
-│   │   ├── db/               # Drizzle schema & migrations
-│   │   ├── middleware/       # Auth, validation, error handling
-│   │   ├── routes/           # REST API endpoints
-│   │   ├── services/         # Business logic (Stripe, Email, PDF, etc.)
-│   │   ├── workers/          # BullMQ background workers
-│   │   └── validations/      # Zod validation schemas
-│   └── tests/                # Integration & Unit tests
-│
-└── freelance-dashboard/      # React Frontend (TypeScript + Vite)
-    ├── src/
-    │   ├── api/              # API abstraction layer
-    │   ├── components/       # Reusable UI components
-    │   ├── hooks/            # Custom React hooks
-    │   ├── pages/            # View components
-    │   ├── types/            # Shared TypeScript interfaces
-    │   └── utils/            # Formatting & Date helpers
-```
+## 🏗️ Architecture & Tech Stack
 
-## 🛠️ Getting Started
+The repository is structured as a tightly integrated monorepo, utilizing cutting-edge technologies chosen for performance, type safety, and scalability.
+
+### 🛡️ Backend (`/freelance-api`)
+- **Runtime:** Node.js 20+ (Strict ESM) with Express.
+- **Database:** PostgreSQL configured with **Drizzle ORM** for 100% type-safe SQL queries, migrations, and schema definitions.
+- **Background Processing:** **BullMQ** powered by **Redis** orchestrates asynchronous, heavy tasks (like PDF generation and network-dependent email sending) to ensure sub-100ms API response times.
+- **Validation:** Strict runtime boundary checks using **Zod**.
+- **Testing:** Exhaustive integration and unit testing powered by **Vitest** and **Supertest**, executing against an ephemeral isolated PostgreSQL instance.
+
+### 🎨 Frontend (`/freelance-dashboard`)
+- **Framework:** React 19 bootstrapped with Vite.
+- **Component Architecture:** Designed using the **Compound Component Pattern** (e.g., `<Modal.Header>`, `<Card.Content>`) to eliminate prop-drilling and ensure massive UI reusability.
+- **State Management:** **TanStack Query (React Query)** handles server state, intelligent caching (`staleTime: 30s`), and optimistic updates. **Zustand** manages local auth state.
+- **Performance:** Implements aggressive **Route-based Code Splitting** (`React.lazy`) and customized Rollup manual chunking to ensure instant First Contentful Paint (FCP).
+- **Design System:** Custom Vanilla CSS utilizing CSS Variables for seamless Light/Dark mode transitions, strictly adhering to **Vercel Web Interface Guidelines** for accessibility (a11y) and UX.
+
+---
+
+## ⚙️ CI/CD & DevOps
+
+The project utilizes robust, automated pipelines to ensure code quality and deployment safety.
+
+- **GitHub Actions:** Multi-job workflow running concurrently on every push and pull request.
+  - **`api-ci`**: Spins up ephemeral Postgres & Redis services, runs Drizzle migrations, executes type-checking (`tsc --noEmit`), and runs the Vitest coverage suite.
+  - **`dashboard-ci`**: Installs frontend dependencies, executes strict type-checking, and runs Vitest component tests (via JSDOM).
+- **Containerization:** Fully Dockerized development and production environments (`Dockerfile.dev`, `docker-compose.dev.yml`).
+
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
 - Docker & Docker Compose
-- Node.js 20+ (for local development)
-- A `.env` file (see `.env.example`)
+- Node.js 20+ (For local tooling)
 
-### 1. Launch with Docker (Recommended)
-The easiest way to start is using the provided Makefile:
+### Quick Start
+The project includes a robust `Makefile` to abstract complex Docker commands.
 
-```bash
-# Build and start all services (API, Dashboard, PG, Redis)
-make dev
+1. **Clone & Configure:**
+   ```bash
+   git clone https://github.com/Levelcoder123/freelance-desk.git
+   cd freelance-desk
+   cp freelance-api/env.example freelance-api/.env
+   # Add your Resend and Stripe API keys to .env
+   ```
 
-# Run database migrations
-make migrate
+2. **Boot the Environment:**
+   ```bash
+   # Builds images and starts API, Dashboard, Postgres, and Redis
+   make dev
+   ```
 
-# Seed with professional demo data
-make seed
-```
+3. **Initialize the Database:**
+   ```bash
+   # Applies Drizzle SQL migrations
+   make migrate
+   
+   # Populates the database with realistic test data
+   make seed
+   ```
 
+The application is now live!
 - **Dashboard:** [http://localhost:5173](http://localhost:5173)
-- **API:** [http://localhost:3000](http://localhost:3000)
+- **API Server:** [http://localhost:3000](http://localhost:3000)
 
-### 2. Manual Commands
-| Task | Command |
-|------|---------|
-| Stop all containers | `make stop` |
-| View logs | `make logs` |
-| Build for production | `make prod` |
-| Run Type Check | `cd freelance-api && npx tsc --noEmit` |
+### Essential Commands
+| Task | Command | Description |
+|------|---------|-------------|
+| **Stop** | `make stop` | Halts all running containers safely. |
+| **Logs** | `docker compose -f docker-compose.dev.yml logs -f api` | Tails the backend API & worker logs. |
+| **Test** | `cd freelance-api && npm test` | Runs the Vitest integration suite. |
+| **Wipe** | `make reset` | Destroys containers **and volumes** (wipes DB). |
 
-## 📦 Features & Capabilities
+---
 
-- **Authentication:** Secure JWT-based auth with access/refresh token rotation.
-- **Client CRM:** Manage client profiles, contact info, and hourly rates.
-- **Project Tracking:** Link expenses and invoices to specific projects with progress bars.
-- **Invoicing System:** 
-    - Automated PDF generation.
-    - Direct "Send to Client" via Resend.
-    - One-click Stripe payment links.
-- **Expense Management:** Category-based tracking with project associations.
-- **Financial Analytics:** Real-time dashboard showing revenue vs. expenses, tax estimates, and monthly goals.
-
-## 🤖 AI Development
-This project is optimized for AI-assisted development. It includes specialized skills in `.agents/skills/` for:
-- **`systematic-debugging`**: Rigorous root-cause analysis.
-- **`typescript-react-reviewer`**: High-quality code audits.
-- **`postgres-drizzle`**: Database optimization.
-- **`web-design-guidelines`**: Accessibility and UX excellence.
+## 🧠 AI-Driven Development
+This repository is optimized for AI-assisted workflows via the Gemini CLI. It includes specialized domain-knowledge files in `.agents/skills/` to enforce standards:
+- **`systematic-debugging`**: Enforces strict root-cause analysis before code modification.
+- **`vercel-composition-patterns`**: Guides the AI to write scalable React compound components.
+- **`postgres-drizzle`**: Ensures all database interactions use optimal ORM patterns.
 
 ## 📜 License
-MIT
+Distributed under the MIT License. See `LICENSE` for more information.

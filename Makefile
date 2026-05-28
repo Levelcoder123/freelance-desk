@@ -6,6 +6,7 @@ COMPOSE_PROD := $(DOCKER) compose -f docker-compose.prod.yml
 GREEN := $(shell tput -T xterm setaf 2 2>/dev/null || echo "")
 YELLOW := $(shell tput -T xterm setaf 3 2>/dev/null || echo "")
 BLUE := $(shell tput -T xterm setaf 4 2>/dev/null || echo "")
+RED := $(shell tput -T xterm setaf 1 2>/dev/null || echo "")
 RESET := $(shell tput -T xterm sgr0 2>/dev/null || echo "")
 
 .PHONY: help dev prod up down logs clean reset build test lint migrate seed status
@@ -14,31 +15,35 @@ help:
 	@echo "$(BLUE)Freelance Desk$(RESET)"
 	@echo ""
 	@echo "$(GREEN)Development:"
-	@echo "  make dev         # Start dev environment (attached)"
-	@echo "  make up          # Start dev in background"
-	@echo "  make down        # Stop all containers"
-	@echo "  make logs        # View logs (follow mode)"
+	@echo "  make dev          # Start dev environment (attached)"
+	@echo "  make up           # Start dev in background"
+	@echo "  make down         # Stop all containers"
+	@echo "  make fresh        # Stop → clean cache → rebuild (fix npm errors)"
+	@echo "  make logs         # View logs (follow mode)"
 	@echo ""
 	@echo "$(GREEN)Production:"
-	@echo "  make prod        # Start production in background"
-	@echo "  make prod-down   # Stop production"
-	@echo "  make prod-logs  # View production logs"
+	@echo "  make prod         # Start production in background"
+	@echo "  make prod-down    # Stop production"
+	@echo "  make prod-logs    # View production logs"
 	@echo ""
 	@echo "$(GREEN)Database:"
-	@echo "  make migrate     # Run migrations"
-	@echo "  make seed        # Seed database"
-	@echo "  make db-shell    # Connect to PostgreSQL"
+	@echo "  make migrate      # Run migrations"
+	@echo "  make seed         # Seed database"
+	@echo "  make db-shell     # Connect to PostgreSQL"
 	@echo ""
-	@echo "$(GREEN)Development:"
-	@echo "  make test        # Run tests"
-	@echo "  make lint        # Run linter"
-	@echo "  make api-shell   # Shell into API container"
-	@echo "  make redis-shell # Shell into Redis"
+	@echo "$(GREEN)Development Tools:"
+	@echo "  make test         # Run tests"
+	@echo "  make lint         # Run linter"
+	@echo "  make api-shell    # Shell into API container"
+	@echo "  make redis-shell  # Shell into Redis"
 	@echo ""
 	@echo "$(GREEN)Cleanup:"
-	@echo "  make clean       # Stop containers (keep volumes)"
-	@echo "  make reset       # Stop + remove volumes"
-	@echo "  make status      # Show running containers"
+	@echo "  make clean        # Stop containers (keep volumes)"
+	@echo "  make reset        # Stop + remove volumes"
+	@echo "  make prune        # Remove unused Docker cache (free disk space)"
+	@echo "  make prune-all    # Remove ALL Docker cache (nuclear option)"
+	@echo "  make disk         # Show Docker disk usage"
+	@echo "  make status       # Show running containers"
 
 # =========================
 # Development
@@ -56,6 +61,16 @@ down:
 
 dev-restart:
 	$(COMPOSE_DEV) restart
+
+# Full reset: stop → clean build cache → rebuild from scratch
+# Use this when: npm errors, corrupted cache, disk full, dependency changes
+fresh:
+	@echo "$(YELLOW)Stopping containers...$(RESET)"
+	$(COMPOSE_DEV) down --remove-orphans
+	@echo "$(YELLOW)Clearing Docker build cache...$(RESET)"
+	$(DOCKER) builder prune -f
+	@echo "$(YELLOW)Rebuilding with no cache...$(RESET)"
+	$(COMPOSE_DEV) up --build --force-recreate
 
 # =========================
 # Production
@@ -87,6 +102,10 @@ logs-dashboard:
 status:
 	$(COMPOSE_DEV) ps
 
+disk:
+	@echo "$(BLUE)Docker disk usage:$(RESET)"
+	$(DOCKER) system df
+
 # =========================
 # Database
 # =========================
@@ -104,7 +123,7 @@ redis-shell:
 	$(COMPOSE_DEV) exec -T redis redis-cli -a $(shell grep REDIS_PASSWORD .env | cut -d= -f2)
 
 # =========================
-# Development
+# Testing
 # =========================
 
 test:
@@ -138,6 +157,7 @@ build:
 
 build-no-cache:
 	$(COMPOSE_DEV) build --no-cache --parallel
+	@echo "$(GREEN)Build complete (no cache).$(RESET)"
 
 # =========================
 # Cleanup
@@ -149,3 +169,16 @@ clean:
 reset:
 	$(COMPOSE_DEV) down -v --remove-orphans
 	@echo "$(YELLOW)All volumes removed.$(RESET)"
+
+# Remove only dangling/unused cache — safe, saves space without losing all cache
+prune:
+	@echo "$(YELLOW)Removing unused Docker objects...$(RESET)"
+	$(DOCKER) builder prune -f
+	$(DOCKER) image prune -f
+	@echo "$(GREEN)Done. Run 'make disk' to verify.$(RESET)"
+
+# Remove everything — images, cache, unused volumes. Next build re-downloads all layers
+prune-all:
+	@echo "$(RED)Removing ALL unused Docker objects including images...$(RESET)"
+	$(DOCKER) system prune -a --volumes -f
+	@echo "$(GREEN)Done. Next build will be slow (full re-download).$(RESET)"
